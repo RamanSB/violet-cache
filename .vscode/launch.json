@@ -1,0 +1,40 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "FastAPI Debug",
+        "consoleName": "Fast API (Debug)",
+        "type": "debugpy",
+        "request": "launch",
+        "module": "uvicorn",
+        "python": "${workspaceFolder}/venv/bin/python",
+        "env": {
+          "PYTHONPATH": "${workspaceFolder}"
+        },
+        "args": [
+          "app.main:app",
+          "--reload",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8000"
+        ],
+        "cwd": "${workspaceFolder}",
+        "console": "integratedTerminal",
+        "justMyCode": false
+      },
+      {
+        "name": "Gmail Script Debug",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder}/app/scripts/gmail.py",
+        "python": "${workspaceFolder}/venv/bin/python",
+        "env": {
+          "PYTHONPATH": "${workspaceFolder}"
+        },
+        "cwd": "${workspaceFolder}",
+        "console": "integratedTerminal",
+        "justMyCode": true
+      }
+    ]
+  }
