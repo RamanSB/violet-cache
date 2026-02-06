@@ -1,9 +1,8 @@
-from audioop import getsample
 from typing import Annotated
 from fastapi import Depends
 from sqlmodel import SQLModel, create_engine, Session
 
-from app.config import get_settings, settings
+from app.config import get_settings
 
 settings = get_settings()
 

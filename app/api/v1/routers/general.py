@@ -1,9 +1,8 @@
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, EmailStr
-from sqlmodel import SQLModel, select
+from sqlmodel import SQLModel
 
-from app.db import SessionDep
-from app.models import User
+from app.dependencies import UserServiceDep
 
 router = APIRouter()
 
@@ -17,24 +16,16 @@ class RegistrationRequest(SQLModel):
     email: EmailStr
 
 
-# Onboarding
 @router.post("/auth/register")
-def register_email(
-    # request: Request
-    req: RegistrationRequest,
-    session: SessionDep,
-) -> Response:
-    # Move this logic in to a repository class (#get_or_create_user)
-    existing = session.exec(select(User).where(User.email == req.email)).first()
-    if existing:
-        # TODO: Send them a magic link email (if they are not yet validated)
-        raise HTTPException(
-            status_code=409,
-            detail="Please check your inbox for a verification link to confirm your email address.",
-        )
+def register_email(req: RegistrationRequest, user_service: UserServiceDep):
+    """
+    Register a new email address.
 
-    user = User(email=req.email, is_registered=False)
-    session.add(user)
-    session.commit()
-    session.refresh(user)
-    return user
+    Validates request and delegates all business logic to the service.
+    """
+    try:
+        user = user_service.register_email(req.email)
+        return user
+    except ValueError as e:
+        # Email already registered
+        raise HTTPException(status_code=409, detail=str(e))

@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     # DB
     database_url: str
 
+    my_google_user_id: str
     # Google OAuth
     google_oauth_client_id: str
     google_oauth_client_secret: str
