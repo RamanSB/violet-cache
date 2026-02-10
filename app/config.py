@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     google_oauth_client_secret: str
     google_oauth_redirect_uri: str
 
+    # Celery
+    celery_broker_url: str
+    celery_result_backend: str
     model_config = SettingsConfigDict(
         env_file="/Users/raman/Documents/Development/Projects/notes-lab/.env"
     )

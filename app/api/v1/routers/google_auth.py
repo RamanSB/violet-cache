@@ -4,7 +4,10 @@ from fastapi.responses import RedirectResponse
 import httpx
 from app.config import settings
 from app.dependencies import GoogleOAuthServiceDep
+from app.enums import EmailProvider
 from app.services.google_oauth_helper import GoogleOAuthHelper
+from app.tasks.celery.tasks import ingest_user_email_ids
+
 
 router = APIRouter(prefix="/auth/google")
 
@@ -46,6 +49,8 @@ def google_consent_redirect(request: Request, oauth_service: GoogleOAuthServiceD
         user, google_auth_data = oauth_service.handle_oauth_callback(
             code=code, redirect_uri=settings.google_oauth_redirect_uri
         )
+        # Trigger celery task for ingestion here.
+        ingest_user_email_ids.delay(user_id=user.id, email_provider=EmailProvider.GMAIL)
         return RedirectResponse(url="http://localhost:8000/auth/google/success")
     except ValueError as e:
         # Scope validation error

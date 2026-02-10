@@ -1,4 +1,5 @@
 import uuid
+from sqlalchemy.orm import foreign
 from sqlmodel import Boolean, Field, SQLModel, TIMESTAMP
 from sqlmodel.main import EmailStr
 from datetime import timezone, datetime
@@ -41,3 +42,20 @@ class GoogleAuthData(BaseModel, table=True):
     refresh_token: str | None
     expires_at: datetime | None = Field(sa_type=TIMESTAMP(timezone=True))
     refresh_token_expires_at: datetime | None = Field(sa_type=TIMESTAMP(timezone=True))
+
+
+class Email(BaseModel, table=True):
+    user_id: uuid.UUID = Field(default=None, foreign_key="user.id")
+    external_id: str = Field(unique=True)
+    thread_id: str
+    sender: EmailStr
+    receiver: EmailStr
+    subject: str
+    date_received: datetime
+    # label_ids: [str]
+    subject: str | None
+    size: int
+
+
+class EmailContent(BaseModel, table=True):
+    external_id: str = Field(default=None, foreign_key="email.external_id")

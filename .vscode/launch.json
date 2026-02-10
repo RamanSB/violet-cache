@@ -35,6 +35,37 @@
         "cwd": "${workspaceFolder}",
         "console": "integratedTerminal",
         "justMyCode": true
+      },
+      {
+        "name": "Celery Worker Debug",
+        "consoleName": "Celery Worker (Debug)",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder}/venv/bin/celery",
+        "args": [
+            "-A",
+            "app.tasks.celery.celery",
+            "worker",
+            "--loglevel=info",
+            "--concurrency=1",
+            "-P", 
+            "solo"
+        ],
+        "console": "integratedTerminal",
+        "cwd": "${workspaceFolder}",
+        "env": {
+            "PYTHONPATH": "${workspaceFolder}"
+        },
+        "justMyCode": false
+      }
+    ],
+    "compounds": [
+      {
+        "name": "FastAPI + Celery Worker Debug",
+        "configurations": [
+          "FastAPI Debug",
+          "Celery Worker Debug"
+        ]
       }
     ]
-  }
+}

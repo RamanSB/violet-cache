@@ -3,8 +3,14 @@ import json
 import random
 from typing import Any, Dict, List
 
+
 import httpx
 from aiolimiter import AsyncLimiter
+from sqlmodel import Session
+
+from app.client.gmail import GmailClient
+from app.db import engine
+from app.repositories.google_auth import GoogleAuthDataRepository
 
 BASE_URL = "https://gmail.googleapis.com/gmail/v1"
 OAUTH_ACCESS_TOKEN = ""
@@ -83,17 +89,55 @@ async def fetch_messages_by_ids(
         return await asyncio.gather(*coros)
 
 
+async def test_email_fetch():
+    MY_USER_ID_PK = "6594e29d-2651-4346-8b68-65d50ec278a6"
+    with Session(engine) as session:
+        google_auth_repo = GoogleAuthDataRepository(session)
+        google_auth_data = google_auth_repo.find_by_user_id(MY_USER_ID_PK)
+        headers = {
+            "Authorization": f"Bearer {google_auth_data.access_token}",
+            "Content-Type": "application/json",
+        }
+        gmail_client = GmailClient()
+
+        try:
+            message_ids = await gmail_client.list_messages(
+                google_user_id=google_auth_data.google_user_id,
+                headers=headers,
+                # q="in:spam OR in:trash",
+                include_spam_trash=False,
+            )
+
+            sample_msg_ids = message_ids[:200]
+
+            email_messages = await gmail_client.fetch_messages_by_ids(
+                message_ids=sample_msg_ids,
+                headers=headers,
+                google_user_id=google_auth_data.google_user_id,
+            )
+
+            with open(
+                "/Users/raman/Documents/Development/Projects/notes-lab/app/data/json/all_emails_full_format.json",
+                "w",
+            ) as file:
+                json.dump(email_messages, file)
+
+        finally:
+            await gmail_client.close()
+
+
 if __name__ == "__main__":
-    import pathlib
+    # import pathlib
 
-    ids_path = pathlib.Path("app/data/json/message_ids.json")
-    out_path = pathlib.Path("app/data/json/all_emails_metadata.json")
+    # ids_path = pathlib.Path("app/data/json/message_ids.json")
+    # out_path = pathlib.Path("app/data/json/all_emails_metadata.json")
 
-    message_ids = json.loads(ids_path.read_text())
+    # message_ids = json.loads(ids_path.read_text())
 
-    # start small first
-    sample = message_ids[:500]
+    # # start small first
+    # sample = message_ids[:500]
 
-    results = asyncio.run(fetch_messages_by_ids(sample, concurrency=15, rps=50))
-    out_path.write_text(json.dumps(results, indent=2))
-    print(f"Wrote {len(results)} messages to {out_path}")
+    # results = asyncio.run(fetch_messages_by_ids(sample, concurrency=15, rps=50))
+    # out_path.write_text(json.dumps(results, indent=2))
+    # print(f"Wrote {len(results)} messages to {out_path}")
+    asyncio.run(test_email_fetch())
