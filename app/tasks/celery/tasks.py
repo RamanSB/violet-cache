@@ -35,9 +35,7 @@ async def _ingest_user_email_ids(user_id: str, email_provider: EmailProvider):
         }
         try:
             message_ids: List[str] = await gmail_client.list_messages(
-                google_user_id=google_user_id,
-                headers=headers,
-                params={"includeSpamTrash": "false"},
+                google_user_id=google_user_id, headers=headers, include_spam_trash=False
             )
 
             messages = await gmail_client.fetch_messages_by_ids(

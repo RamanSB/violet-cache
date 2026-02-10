@@ -104,11 +104,10 @@ async def test_email_fetch():
             message_ids = await gmail_client.list_messages(
                 google_user_id=google_auth_data.google_user_id,
                 headers=headers,
-                # q="in:spam OR in:trash",
                 include_spam_trash=False,
             )
 
-            sample_msg_ids = message_ids[:200]
+            sample_msg_ids = message_ids  # [:200]
 
             email_messages = await gmail_client.fetch_messages_by_ids(
                 message_ids=sample_msg_ids,
