@@ -4,7 +4,22 @@
 
 **Verbose one-liner**: *CaseFile helps users understand and prove what was agreed in email conversations by turning long email threads into searchable timelines with cited answers.*
 
-**Problem**
+### Technical Overview
+
+Casefile ingests a user's Gmail mailbox using the Gmail API and builds a structured metadata index of all messages.  
+Metadata ingestion is performed asynchronously via Celery workers to handle large mailboxes (100k+ emails) safely.
+
+Email bodies are not fetched immediately. Instead, they are lazily retrieved when a user creates or opens a Casefile.  
+This significantly reduces API usage, cost, and processing time.
+
+The system separates:
+- ingestion (metadata sync)
+- enrichment (body fetch + parsing)
+- intelligence (search + embeddings)
+
+FastAPI handles user interaction and job orchestration, while background workers perform heavy I/O operations.
+
+### Problem
 
 Users regularly deal with long running email conversations (housing disputes, solicitors, insurance, contractors, complaints). Important decisions and numbers are buried across months/years of email and are difficult to retrieve.
 
