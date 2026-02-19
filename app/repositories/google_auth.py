@@ -18,6 +18,16 @@ class GoogleAuthDataRepository:
             )
         ).first()
 
+    def find_by_email_account_id(
+        self, email_account_id: uuid.UUID
+    ) -> GoogleAuthData | None:
+        """Find GoogleAuthData by EmailAccount ID."""
+        return self.session.exec(
+            select(GoogleAuthData).where(
+                GoogleAuthData.email_account_id == email_account_id
+            )
+        ).first()
+
     def find_by_user_id(self, user_id: uuid.UUID) -> GoogleAuthData | None:
         """Find GoogleAuthData by user ID."""
         return self.session.exec(
@@ -41,7 +51,8 @@ class GoogleAuthDataRepository:
 
     def create(
         self,
-        user_id: uuid.UUID,
+        email_account_id: uuid.UUID,
+        user_id: uuid.UUID | None = None,
         google_user_id: str | None = None,
         access_token: str | None = None,
         refresh_token: str | None = None,
@@ -50,6 +61,7 @@ class GoogleAuthDataRepository:
     ) -> GoogleAuthData:
         """Create a new GoogleAuthData record."""
         google_auth_data = GoogleAuthData(
+            email_account_id=email_account_id,
             user_id=user_id,
             google_user_id=google_user_id,
             access_token=access_token,

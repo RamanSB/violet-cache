@@ -1,8 +1,9 @@
 import uuid
-from sqlalchemy.orm import foreign
 from sqlmodel import Boolean, Field, SQLModel, TIMESTAMP
 from sqlmodel.main import EmailStr
 from datetime import timezone, datetime
+
+from app.enums import EmailProvider
 
 
 class BaseModel(SQLModel):
@@ -23,7 +24,7 @@ class BaseModel(SQLModel):
 
 
 class User(BaseModel, table=True):
-    __table__name = "users"
+    __tablename__ = "user"
 
     email: EmailStr = Field(unique=True)
     first_name: str | None = Field(default=None, nullable=True)
@@ -31,10 +32,23 @@ class User(BaseModel, table=True):
     is_registered: bool = Field()
 
 
+class EmailAccount(BaseModel, table=True):
+    __tablename__ = "email_account"
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    email: EmailStr = Field(unique=True)
+    provider: EmailProvider
+
+
 class GoogleAuthData(BaseModel, table=True):
     __tablename__ = "google_auth_data"
+    # Denormalized for quick lookups; User is derivable via EmailAccount
+    user_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", nullable=True
+    )
 
-    user_id: uuid.UUID = Field(default=None, foreign_key="user.id")
+    # Email Account ID
+    email_account_id: uuid.UUID = Field(foreign_key="email_account.id")
+
     google_user_id: str = Field(default=None, nullable=True, unique=True)
 
     # Token Fields
@@ -46,6 +60,7 @@ class GoogleAuthData(BaseModel, table=True):
 
 class Email(BaseModel, table=True):
     user_id: uuid.UUID = Field(default=None, foreign_key="user.id")
+    email_account_id: uuid.UUID = Field(default=None, foreign_key="email_account.id")
     external_id: str = Field(unique=True)
     thread_id: str
     sender: EmailStr
@@ -53,9 +68,9 @@ class Email(BaseModel, table=True):
     subject: str
     date_received: datetime
     # label_ids: [str]
-    subject: str | None
     size: int
 
 
 class EmailContent(BaseModel, table=True):
+    __tablename__ = "email_content"
     external_id: str = Field(default=None, foreign_key="email.external_id")

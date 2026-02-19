@@ -1,4 +1,5 @@
 import secrets
+import uuid
 from fastapi import APIRouter, Request, Response, HTTPException
 from fastapi.responses import RedirectResponse
 import httpx
@@ -6,7 +7,16 @@ from app.config import settings
 from app.dependencies import GoogleOAuthServiceDep
 from app.enums import EmailProvider
 from app.services.google_oauth_helper import GoogleOAuthHelper
-from app.tasks.celery.tasks import ingest_user_email_ids
+from app.tasks.celery.tasks import ingest_email_account
+
+# TODO: Replace this hardcoded user_id with JWT token extraction from request headers
+# For now, hardcoding a user_id for testing. In production, extract from JWT:
+#   - Get Authorization header
+#   - Decode JWT token
+#   - Extract user_id from token payload
+HARDCODED_USER_ID = uuid.UUID(
+    "18cdd005-9931-4433-bd46-fd4223e1431f"
+)  # Replace with actual user_id
 
 
 router = APIRouter(prefix="/auth/google")
@@ -46,11 +56,15 @@ def google_consent_redirect(request: Request, oauth_service: GoogleOAuthServiceD
 
     # Delegate all business logic to service
     try:
-        user, google_auth_data = oauth_service.handle_oauth_callback(
-            code=code, redirect_uri=settings.google_oauth_redirect_uri
+        # TODO: Extract user_id from JWT token in Authorization header instead of hardcoding
+        # For now, using hardcoded user_id. User must be registered first via /auth/register
+        user_id = HARDCODED_USER_ID
+
+        user, email_account, google_auth_data = oauth_service.handle_oauth_callback(
+            code=code, redirect_uri=settings.google_oauth_redirect_uri, user_id=user_id
         )
-        # Trigger celery task for ingestion here.
-        ingest_user_email_ids.delay(user_id=user.id, email_provider=EmailProvider.GMAIL)
+        # TODO: Move email ingestion to a dedicated endpoint
+        # Render a UI here on FE with a success message then move user back to home screen.
         return RedirectResponse(url="http://localhost:8000/auth/google/success")
     except ValueError as e:
         # Scope validation error

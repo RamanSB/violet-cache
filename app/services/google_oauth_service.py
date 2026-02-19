@@ -4,7 +4,9 @@ import uuid
 from app.config import get_settings
 from app.repositories.user import UserRepository
 from app.repositories.google_auth import GoogleAuthDataRepository
-from app.models.models import User, GoogleAuthData
+from app.services.email_account_service import EmailAccountService
+from app.models.models import User, GoogleAuthData, EmailAccount
+from app.enums import EmailProvider
 
 
 class GoogleOAuthService:
@@ -22,9 +24,11 @@ class GoogleOAuthService:
         self,
         user_repo: UserRepository,
         google_auth_repo: GoogleAuthDataRepository,
+        email_account_service: EmailAccountService,
     ):
         self.user_repo = user_repo
         self.google_auth_repo = google_auth_repo
+        self.email_account_service = email_account_service
         self.settings = get_settings()
 
     def exchange_code_for_tokens(self, code: str, redirect_uri: str) -> dict:
@@ -50,18 +54,23 @@ class GoogleOAuthService:
         return response.json()
 
     def handle_oauth_callback(
-        self, code: str, redirect_uri: str
-    ) -> tuple[User, GoogleAuthData]:
+        self, code: str, redirect_uri: str, user_id: uuid.UUID
+    ) -> tuple[User, EmailAccount, GoogleAuthData]:
         """
         Handle complete OAuth callback flow: exchange code, validate scopes,
-        get/create user, and save auth data.
+        create/get EmailAccount for the logged-in user, and save auth data.
+
+        Args:
+            code: OAuth authorization code from Google
+            redirect_uri: OAuth redirect URI
+            user_id: ID of the logged-in user who initiated OAuth
 
         Returns:
-            tuple: (User, GoogleAuthData)
+            tuple: (User, EmailAccount, GoogleAuthData)
 
         Raises:
             httpx.HTTPError: If token exchange or user info fetch fails.
-            ValueError: If required scopes are missing.
+            ValueError: If required scopes are missing or user doesn't exist.
         """
         # Exchange code for tokens
         tokens = self.exchange_code_for_tokens(code, redirect_uri)
@@ -72,16 +81,29 @@ class GoogleOAuthService:
         if not is_valid:
             raise ValueError(f"Required scopes were not permitted: {missing_scopes}")
 
-        # Get or create user from Google user info
-        user = self.get_or_create_user_from_google(tokens["access_token"])
+        # Verify user exists
+        user = self.user_repo.find_by_id(user_id)
+        if not user:
+            raise ValueError(
+                f"User with id {user_id} does not exist. User must be registered first."
+            )
 
-        # Extract google_user_id from user info (needed for save_or_update_google_auth)
+        # Fetch user info from Google to get email
         user_info = self.fetch_user_info_from_google(tokens["access_token"])
+        google_email = user_info["email"]
         google_user_id = user_info["id"]
 
-        # Save or update auth data
+        # Create or get EmailAccount for this user
+        email_account = self.email_account_service.get_or_create_email_account(
+            user_id=user_id,
+            email=google_email,
+            provider=EmailProvider.GMAIL,
+        )
+
+        # Save or update auth data linked to EmailAccount
         google_auth_data = self.save_or_update_google_auth(
-            user_id=user.id,
+            email_account_id=email_account.id,
+            user_id=user_id,
             access_token=tokens["access_token"],
             refresh_token=tokens["refresh_token"],
             expires_in=tokens.get("expires_in", 3600),
@@ -89,7 +111,7 @@ class GoogleOAuthService:
             google_user_id=google_user_id,
         )
 
-        return user, google_auth_data
+        return user, email_account, google_auth_data
 
     def validate_scopes(self, token_scopes: str) -> tuple[bool, list[str]]:
         """Validate that required scopes are present in token response."""
@@ -107,41 +129,9 @@ class GoogleOAuthService:
         response.raise_for_status()
         return response.json()
 
-    def get_or_create_user_from_google(self, access_token: str) -> User:
-        """Fetch user info from Google and create/find user in DB."""
-        user_info = self.fetch_user_info_from_google(access_token)
-
-        # Find or create user using repository
-        user = self.user_repo.find_by_email(user_info["email"])
-
-        if user:
-            user.is_registered = True
-            user = self.user_repo.update(user)
-        else:
-            user = self.user_repo.create(
-                email=user_info["email"],
-                first_name=user_info.get("given_name"),
-                last_name=user_info.get("family_name"),
-                is_registered=True,
-            )
-
-        # Find or create GoogleAuthData using repository
-        google_auth_data = self.google_auth_repo.find_by_google_user_id(user_info["id"])
-
-        if not google_auth_data:
-            self.google_auth_repo.create(
-                google_user_id=user_info["id"],
-                user_id=user.id,
-            )
-        else:
-            if google_auth_data.user_id != user.id:
-                google_auth_data.user_id = user.id
-                self.google_auth_repo.update(google_auth_data)
-
-        return user
-
     def save_or_update_google_auth(
         self,
+        email_account_id: uuid.UUID,
         user_id: uuid.UUID,
         access_token: str,
         refresh_token: str,
@@ -149,17 +139,23 @@ class GoogleOAuthService:
         refresh_token_expires_in: int,
         google_user_id: str | None = None,
     ) -> GoogleAuthData:
-        """Save or update Google auth tokens for a user."""
+        """Save or update Google auth tokens for an EmailAccount."""
         expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
         refresh_token_expires_at = datetime.now(timezone.utc) + timedelta(
             seconds=refresh_token_expires_in
         )
 
-        existing_auth = self.google_auth_repo.find_by_user_or_google_id(
-            user_id=user_id, google_user_id=google_user_id
-        )
+        # Try to find existing auth data by email_account_id first
+        existing_auth = self.google_auth_repo.find_by_email_account_id(email_account_id)
+
+        # If not found, try by google_user_id
+        if not existing_auth and google_user_id:
+            existing_auth = self.google_auth_repo.find_by_google_user_id(google_user_id)
 
         if existing_auth:
+            # Update existing auth data
+            existing_auth.email_account_id = email_account_id
+            existing_auth.user_id = user_id
             existing_auth.google_user_id = (
                 google_user_id or existing_auth.google_user_id
             )
@@ -169,7 +165,9 @@ class GoogleOAuthService:
             existing_auth.expires_at = expires_at
             return self.google_auth_repo.update(existing_auth)
         else:
+            # Create new auth data
             return self.google_auth_repo.create(
+                email_account_id=email_account_id,
                 user_id=user_id,
                 google_user_id=google_user_id,
                 access_token=access_token,
