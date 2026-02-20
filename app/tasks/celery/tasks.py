@@ -1,19 +1,22 @@
 import asyncio
 import uuid
+from datetime import datetime, timezone
 from typing import List
-from app.tasks.celery.celery import app
 
 from app.celery_db import celery_session
-from app.enums import EmailProvider
+from app.enums import JobStatus
 from app.models.models import EmailAccount
 from app.repositories.email_account import EmailAccountRepository
-from app.strategies.strategy_factory import EmailProviderStrategyFactory
+from app.repositories.job_repository import JobRepository
+from app.services.job_service import JobService
 from app.strategies.auth_data_strategy_factory import AuthDataStrategyFactory
+from app.strategies.strategy_factory import EmailProviderStrategyFactory
+from app.tasks.celery.celery import app
 
 
 @app.task(name="ingest_email_account")
 def sync_email_metadata_orchestrator(
-    email_account_id: str, idempotency_key: str | None = None
+    job_id: str, email_account_id: str, idempotency_key: str | None = None
 ) -> dict:
     """
     Celery task to ingest emails for an email account.
@@ -26,12 +29,12 @@ def sync_email_metadata_orchestrator(
         dict: Task result with status and message
     """
     return asyncio.run(
-        _sync_email_metadata_orchestrator(email_account_id, idempotency_key)
+        _sync_email_metadata_orchestrator(job_id, email_account_id, idempotency_key)
     )
 
 
 async def _sync_email_metadata_orchestrator(
-    email_account_id: str, idempotency_key: str | None = None
+    job_id: uuid.UUID, email_account_id: str, idempotency_key: str | None = None
 ):
     """Async implementation of email ingestion."""
     email_account_uuid = uuid.UUID(email_account_id)
@@ -39,6 +42,9 @@ async def _sync_email_metadata_orchestrator(
 
     try:
         with celery_session() as session:
+            job_repository: JobRepository = JobRepository(session)
+            job_service: JobService = JobService(job_repository=job_repository)
+            job_service.update_job(job_id=job_id, status=JobStatus.running)
             # Load email account
             email_account_repo = EmailAccountRepository(session=session)
             email_account: EmailAccount | None = email_account_repo.find_by_id(
@@ -79,36 +85,38 @@ async def _sync_email_metadata_orchestrator(
             # Create email provider strategy for fetching messages
             strategy = EmailProviderStrategyFactory.create(email_account.provider)
 
-            # List messages
-            message_ids: List[str] = await strategy.list_messages(
+            total = 0
+            # Iterate over messages in batches of 500 (AsyncGenerator)
+            async for msg_ids in strategy.list_messages(
                 access_token=auth_data.access_token,
                 user_identifier=user_identifier,
                 include_spam_trash=False,
-            )
+            ):
+                # Fetch full message data
+                messages = await strategy.fetch_messages_by_ids(
+                    msg_ids,
+                    access_token=auth_data.access_token,
+                    user_identifier=user_identifier,
+                    format="metadata",
+                )
+                total += len(messages)
+                job_service.update_job(job_id, progress_current=total)
 
-            # Fetch full message data
-            messages = await strategy.fetch_messages_by_ids(
-                message_ids,
-                access_token=auth_data.access_token,
-                user_identifier=user_identifier,
+            job_service.update_job(
+                job_id,
+                status=JobStatus.succeeded,
+                completed_at=datetime.now(timezone.utc),
             )
-
-            # TODO: Persist messages to DB using email_account_id
-            print(
-                f"Fetched {len(messages)} messages for EmailAccount {email_account_id}"
-            )
-
-            return {
-                "status": "success",
-                "message": f"Successfully ingested {len(messages)} messages",
-                "message_count": len(messages),
-            }
+            return {"status": "success", "message_count": total}
 
     except Exception as e:
-        return {
-            "status": "error",
-            "message": f"Error during email ingestion: {str(e)}",
-        }
+        with celery_session() as session:
+            job_repo = JobRepository(session=session)
+            job_service = JobService(job_repo)
+            job_service.update_job(
+                job_id=job_id, status=JobStatus.failed, error_message=str(e)
+            )
+        return {"status": "error", "message": str(e)}
     finally:
         if strategy:
             await strategy.close()

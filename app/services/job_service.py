@@ -1,3 +1,6 @@
+from datetime import datetime
+from time import timezone
+from sqlmodel import select
 from app.models.models import WorkflowJob
 from app.repositories.job_repository import JobRepository
 from app.enums import ResourceType, JobType, JobStatus
@@ -50,3 +53,44 @@ class JobService:
             return workflow_job, True
 
         return workflow_job, False
+
+    def update_job(
+        self,
+        job_id: uuid.UUID,
+        *,
+        status=None,
+        error_message=None,
+        progress_current=None,
+        progress_total=None,
+        cursor=None,
+        started_at=None,
+        completed_at=None,
+    ) -> WorkflowJob:
+
+        job = self.job_repo.find_by_id(id=job_id)
+
+        if status is not None:
+            job.status = status
+
+        # if progress_current is not None:
+        #     job.progress_current = progress_current
+
+        # if progress_total is not None:
+        #     job.progress_total = progress_total
+
+        # if cursor is not None:
+        #     job.cursor = cursor
+
+        if error_message is not None:
+            job.error_message = error_message
+
+        # if started_at is not None:
+        #     job.started_at = started_at
+
+        # if completed_at is not None:
+        #     job.completed_at = completed_at
+
+        # job.last_heartbeat_at = datetime.now(timezone.utc)
+        job = self.job_repo.update(job)
+
+        return job

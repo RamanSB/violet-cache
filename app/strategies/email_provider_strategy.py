@@ -1,7 +1,7 @@
 """Strategy pattern for email provider implementations."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from typing import Any, AsyncIterator, Dict, List
 from app.enums import EmailProvider
 
 
@@ -21,7 +21,7 @@ class EmailProviderStrategy(ABC):
         user_identifier: str,
         max_results_per_page: int = 500,
         include_spam_trash: bool = False,
-    ) -> List[str]:
+    ) -> AsyncIterator[List[str]]:
         """
         List message IDs from the email provider.
 
@@ -43,6 +43,7 @@ class EmailProviderStrategy(ABC):
         *,
         access_token: str,
         user_identifier: str,
+        format: str | None,
     ) -> List[Dict[str, Any]]:
         """
         Fetch full message data by message IDs.

@@ -1,6 +1,6 @@
 """Gmail-specific email provider strategy implementation."""
 
-from typing import Any, Dict, List
+from typing import Any, AsyncIterator, Dict, List
 from app.enums import EmailProvider
 from app.strategies.email_provider_strategy import EmailProviderStrategy
 from app.client.gmail import GmailClient
@@ -23,18 +23,19 @@ class GmailStrategy(EmailProviderStrategy):
         user_identifier: str,
         max_results_per_page: int = 500,
         include_spam_trash: bool = False,
-    ) -> List[str]:
+    ) -> AsyncIterator[List[str]]:
         """List Gmail message IDs."""
         headers = {
             "Authorization": f"Bearer {access_token}",
             "Accept": "application/json",
         }
-        return await self._client.list_messages(
+        async for batch in self._client.list_messages(
             google_user_id=user_identifier,
             headers=headers,
             max_results_per_page=max_results_per_page,
             include_spam_trash=include_spam_trash,
-        )
+        ):
+            yield batch
 
     async def fetch_messages_by_ids(
         self,
@@ -42,6 +43,7 @@ class GmailStrategy(EmailProviderStrategy):
         *,
         access_token: str,
         user_identifier: str,
+        format: str = "metadata",
     ) -> List[Dict[str, Any]]:
         """Fetch Gmail messages by IDs."""
         headers = {

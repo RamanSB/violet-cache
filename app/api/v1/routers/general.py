@@ -9,9 +9,10 @@ from app.dependencies import (
     JobServiceDep,
     UserServiceDep,
 )
-from app.enums import JobType, ResourceType
+from app.enums import JobType, ResourceType, HARDCODED_USER_ID
 from app.models.models import EmailAccount, WorkflowJob
 from app.repositories.email_account import EmailAccountRepository
+
 
 router = APIRouter()
 
@@ -41,7 +42,6 @@ def register_email(req: RegistrationRequest, user_service: UserServiceDep):
 
 
 # TODO: Replace with JWT token extraction
-HARD_CODED_USER_ID = uuid.UUID("18cdd005-9931-4433-bd46-fd4223e1431f")
 
 
 @router.get("/email-accounts/")
@@ -55,7 +55,7 @@ def get_email_accounts(
     try:
         # TODO: Extract user_id from JWT token in Authorization header
         email_accounts = email_account_repository.find_by_user_id(
-            user_id=HARD_CODED_USER_ID
+            user_id=HARDCODED_USER_ID
         )
         return email_accounts
     except Exception as e:
@@ -98,7 +98,7 @@ def sync_email_account(
         )
 
         # Start sync job (this will check credentials internally) if job not already created.
-        if not created:
+        if created:
             job_status = email_account_service.start_email_account_sync(
                 active_job.id,
                 email_account_id=email_account_uuid,

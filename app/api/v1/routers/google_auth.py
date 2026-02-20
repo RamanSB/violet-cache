@@ -5,18 +5,15 @@ from fastapi.responses import RedirectResponse
 import httpx
 from app.config import settings
 from app.dependencies import GoogleOAuthServiceDep
-from app.enums import EmailProvider
+from app.enums import EmailProvider, HARDCODED_USER_ID
 from app.services.google_oauth_helper import GoogleOAuthHelper
-from app.tasks.celery.tasks import sync_email_metadata_orchestrator
+
 
 # TODO: Replace this hardcoded user_id with JWT token extraction from request headers
 # For now, hardcoding a user_id for testing. In production, extract from JWT:
 #   - Get Authorization header
 #   - Decode JWT token
 #   - Extract user_id from token payload
-HARDCODED_USER_ID = uuid.UUID(
-    "18cdd005-9931-4433-bd46-fd4223e1431f"
-)  # Replace with actual user_id
 
 
 router = APIRouter(prefix="/auth/google")

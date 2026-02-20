@@ -1,6 +1,6 @@
 import asyncio
 import random
-from typing import Any, Dict, List, Optional
+from typing import Any, AsyncIterator, Dict, List, Optional
 
 import httpx
 from aiolimiter import AsyncLimiter
@@ -84,7 +84,7 @@ class GmailClient:
         max_results_per_page: int = 500,
         q: Optional[str] = None,
         include_spam_trash: bool = True,
-    ) -> List[str]:
+    ) -> AsyncIterator[List[str]]:
         """
         Recommended: async.
         Reason: if you call this inside FastAPI/Celery async flow, a sync `httpx.Client()`
@@ -93,7 +93,6 @@ class GmailClient:
         Returns a list of Gmail message IDs.
         """
         url = f"{self.base_url}/users/{google_user_id}/messages"
-        message_ids: List[str] = []
         page_token: Optional[str] = None
 
         while True:
@@ -109,16 +108,15 @@ class GmailClient:
             r = await self._get_with_backoff(url=url, headers=headers, params=params)
             data = r.json()
 
-            for msg in data.get("messages", []):
-                mid = msg.get("id")
-                if mid:
-                    message_ids.append(mid)
+            msg_ids: List[str] = [
+                msg["id"] for msg in data.get("messages", []) if msg.get("id")
+            ]
+
+            yield msg_ids
 
             page_token = data.get("nextPageToken")
             if not page_token:
                 break
-
-        return message_ids
 
     async def fetch_messages_by_ids(
         self,

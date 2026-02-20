@@ -1,4 +1,5 @@
 from enum import Enum
+import uuid
 
 
 class EmailProvider(str, Enum):
@@ -21,3 +22,6 @@ class ResourceType(str, Enum):
     email_account = "email_account"
     casefile = "casefile"
     document = "document"
+
+
+HARDCODED_USER_ID = uuid.UUID("5aeaba4e-420c-4d98-b799-4c1c0a29aba6")
