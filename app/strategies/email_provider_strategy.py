@@ -22,6 +22,7 @@ class EmailProviderStrategy(ABC):
         max_results_per_page: int = 500,
         include_spam_trash: bool = False,
         label_ids: List[str] = [],
+        q: str | None = None,
     ) -> AsyncIterator[List[str]]:
         """
         List message IDs from the email provider.

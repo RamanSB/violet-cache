@@ -24,6 +24,7 @@ class GmailStrategy(EmailProviderStrategy):
         max_results_per_page: int = 500,
         include_spam_trash: bool = False,
         label_ids: List[str] = [],
+        q: str | None = None,
     ) -> AsyncIterator[List[str]]:
         """List Gmail message IDs."""
         headers = {
@@ -36,6 +37,7 @@ class GmailStrategy(EmailProviderStrategy):
             max_results_per_page=max_results_per_page,
             include_spam_trash=include_spam_trash,
             label_ids=label_ids,
+            q=q,
         ):
             yield batch
 
@@ -53,9 +55,7 @@ class GmailStrategy(EmailProviderStrategy):
             "Accept": "application/json",
         }
         return await self._client.fetch_messages_by_ids(
-            message_ids,
-            headers=headers,
-            google_user_id=user_identifier,
+            message_ids, headers=headers, google_user_id=user_identifier, format=format
         )
 
     async def close(self) -> None:

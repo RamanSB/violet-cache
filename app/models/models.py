@@ -1,6 +1,6 @@
 import uuid
 from fastapi import status
-from sqlmodel import Boolean, Field, SQLModel, TIMESTAMP
+from sqlmodel import Boolean, Field, SQLModel, TIMESTAMP, UniqueConstraint
 from sqlmodel.main import EmailStr
 from datetime import timezone, datetime
 
@@ -60,12 +60,14 @@ class GoogleAuthData(BaseModel, table=True):
 
 
 class Email(BaseModel, table=True):
+    __table_args__ = (UniqueConstraint("email_account_id", "external_id"),)
     user_id: uuid.UUID = Field(default=None, foreign_key="user.id")
     email_account_id: uuid.UUID = Field(default=None, foreign_key="email_account.id")
-    external_id: str = Field(unique=True)
+    external_id: str
     thread_id: str
     sender: EmailStr
-    receiver: EmailStr
+    receiver: str  # Can be multiple emails store the entire sring
+    cc: str | None
     subject: str
     date_received: datetime
     # label_ids: [str]
@@ -82,7 +84,7 @@ class WorkflowJob(BaseModel, table=True):
     job_type: JobType
     status: JobStatus
     resource_type: ResourceType
-    progress_current: Field(default=0)
-    progress_total: Field(default=0)
+    progress_current: int = Field(default=0)
+    progress_total: int = Field(default=0)
     error_message: str = Field(default=None, nullable=True)
     resource_id: uuid.UUID | None = Field(default=None, nullable=True)

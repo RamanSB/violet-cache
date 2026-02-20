@@ -24,4 +24,5 @@ class ResourceType(str, Enum):
     document = "document"
 
 
-HARDCODED_USER_ID = uuid.UUID("5aeaba4e-420c-4d98-b799-4c1c0a29aba6")
+# TODO: Read in from JWT
+HARDCODED_USER_ID = uuid.UUID("542d0824-a066-4670-8a81-811f848b4554")

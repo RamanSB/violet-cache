@@ -71,7 +71,7 @@ async def _sync_email_metadata_orchestrator(
             if not auth_data.access_token:
                 return {
                     "status": "error",
-                    "message": "Access token not available. Please re-authenticate.",
+                    "message": f"Access token not available. Please re-authenticate {email_account.provider}.",
                 }
 
             # Get provider-specific user identifier using the strategy
@@ -92,6 +92,7 @@ async def _sync_email_metadata_orchestrator(
                 user_identifier=user_identifier,
                 include_spam_trash=False,
                 label_ids=["INBOX"],
+                q="category:primary -category:promotions -category:social -category:updates",
             ):
                 # Fetch full message data
                 messages = await strategy.fetch_messages_by_ids(
@@ -108,6 +109,7 @@ async def _sync_email_metadata_orchestrator(
                 user_identifier=user_identifier,
                 include_spam_trash=False,
                 label_ids=["SENT"],
+                q="-from:(noreply@ OR no-reply@ OR do-not-reply@ OR notifications@)",
             ):
                 # Fetch full message data
                 messages = await strategy.fetch_messages_by_ids(
@@ -138,3 +140,7 @@ async def _sync_email_metadata_orchestrator(
     finally:
         if strategy:
             await strategy.close()
+
+
+## TODO: Create a predicate function that decides whether we retain email or not.
+## Move to a dedicated service at a later time.

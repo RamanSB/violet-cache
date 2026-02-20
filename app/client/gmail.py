@@ -127,7 +127,7 @@ class GmailClient:
         *,
         google_user_id: str,
         headers: dict,
-        fmt: str = "full",
+        format: str = "full",
     ) -> List[Dict[str, Any]]:
         """
         Fetch 1 or many messages.
@@ -142,7 +142,7 @@ class GmailClient:
             # - limiter: max requests/sec
             async with self._sem:
                 async with self._limiter:
-                    url = f"{self.base_url}/users/{google_user_id}/messages/{mid}?format={fmt}"
+                    url = f"{self.base_url}/users/{google_user_id}/messages/{mid}?format={format}"
                     r = await self._get_with_backoff(url, headers=headers)
                     return r.json()
 
