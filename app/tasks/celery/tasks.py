@@ -123,6 +123,7 @@ async def _sync_email_metadata_orchestrator(
                 job_id,
                 status=JobStatus.succeeded,
                 completed_at=datetime.now(timezone.utc),
+                progress_total=total,
             )
             return {"status": "success", "message_count": total}
 

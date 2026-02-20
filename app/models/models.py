@@ -82,5 +82,7 @@ class WorkflowJob(BaseModel, table=True):
     job_type: JobType
     status: JobStatus
     resource_type: ResourceType
+    progress_current: Field(default=0)
+    progress_total: Field(default=0)
     error_message: str = Field(default=None, nullable=True)
     resource_id: uuid.UUID | None = Field(default=None, nullable=True)

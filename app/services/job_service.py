@@ -72,11 +72,11 @@ class JobService:
         if status is not None:
             job.status = status
 
-        # if progress_current is not None:
-        #     job.progress_current = progress_current
+        if progress_current is not None:
+            job.progress_current = progress_current
 
-        # if progress_total is not None:
-        #     job.progress_total = progress_total
+        if progress_total is not None:
+            job.progress_total = progress_total
 
         # if cursor is not None:
         #     job.cursor = cursor
