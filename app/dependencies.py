@@ -1,12 +1,18 @@
 from typing import Annotated
 from fastapi import Depends
 from app.db import SessionDep
+from app.repositories.job_repository import JobRepository
 from app.repositories.user import UserRepository
 from app.repositories.google_auth import GoogleAuthDataRepository
 from app.repositories.email_account import EmailAccountRepository
 from app.services.google_oauth_service import GoogleOAuthService
+from app.services.job_service import JobService
 from app.services.user_service import UserService
 from app.services.email_account_service import EmailAccountService
+
+
+def get_job_repository(session: SessionDep) -> JobRepository:
+    return JobRepository(session)
 
 
 def get_user_repository(session: SessionDep) -> UserRepository:
@@ -29,6 +35,12 @@ def get_user_service(
 ) -> UserService:
     """Dependency to get UserService instance."""
     return UserService(user_repo)
+
+
+def get_job_service(
+    job_repo: Annotated[JobRepository, Depends(get_job_repository)],
+) -> JobService:
+    return JobService(job_repo)
 
 
 def get_email_account_service(
@@ -58,6 +70,7 @@ def get_google_oauth_service(
 
 
 # Type aliases for cleaner route signatures
+JobRepositoryDep = Annotated[JobRepository, Depends(get_job_repository)]
 UserRepositoryDep = Annotated[UserRepository, Depends(get_user_repository)]
 GoogleAuthRepositoryDep = Annotated[
     GoogleAuthDataRepository, Depends(get_google_auth_repository)
@@ -65,6 +78,7 @@ GoogleAuthRepositoryDep = Annotated[
 EmailAccountRepositoryDep = Annotated[
     EmailAccountRepository, Depends(get_email_account_repository)
 ]
+JobServiceDep = Annotated[JobService, Depends(get_job_service)]
 UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 EmailAccountServiceDep = Annotated[
     EmailAccountService, Depends(get_email_account_service)

@@ -12,7 +12,7 @@ from app.strategies.auth_data_strategy_factory import AuthDataStrategyFactory
 
 
 @app.task(name="ingest_email_account")
-def ingest_email_account(
+def sync_email_metadata_orchestrator(
     email_account_id: str, idempotency_key: str | None = None
 ) -> dict:
     """
@@ -25,10 +25,12 @@ def ingest_email_account(
     Returns:
         dict: Task result with status and message
     """
-    return asyncio.run(_ingest_email_account(email_account_id, idempotency_key))
+    return asyncio.run(
+        _sync_email_metadata_orchestrator(email_account_id, idempotency_key)
+    )
 
 
-async def _ingest_email_account(
+async def _sync_email_metadata_orchestrator(
     email_account_id: str, idempotency_key: str | None = None
 ):
     """Async implementation of email ingestion."""

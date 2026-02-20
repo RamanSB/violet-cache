@@ -9,7 +9,7 @@ from app.repositories.user import UserRepository
 from app.repositories.google_auth import GoogleAuthDataRepository
 from app.models.models import EmailAccount, GoogleAuthData
 from app.enums import EmailProvider
-from app.tasks.celery.tasks import ingest_email_account
+from app.tasks.celery.tasks import sync_email_metadata_orchestrator
 
 
 class EmailAccountService:
@@ -128,7 +128,10 @@ class EmailAccountService:
         return True, None
 
     def start_email_account_sync(
-        self, email_account_id: uuid.UUID, idempotency_key: Optional[str] = None
+        self,
+        job_id: uuid.UUID,
+        email_account_id: uuid.UUID,
+        idempotency_key: Optional[str] = None,
     ) -> dict:
         """
         Start email sync job for an email account.
@@ -160,7 +163,7 @@ class EmailAccountService:
         #     )
 
         # Submit Celery task
-        task = ingest_email_account.delay(
+        task = sync_email_metadata_orchestrator.delay(
             str(email_account_id), idempotency_key=idempotency_key
         )
 

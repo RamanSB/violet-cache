@@ -6,9 +6,11 @@ from sqlmodel import SQLModel
 from app.dependencies import (
     EmailAccountRepositoryDep,
     EmailAccountServiceDep,
+    JobServiceDep,
     UserServiceDep,
 )
-from app.models.models import EmailAccount
+from app.enums import JobType, ResourceType
+from app.models.models import EmailAccount, WorkflowJob
 from app.repositories.email_account import EmailAccountRepository
 
 router = APIRouter()
@@ -60,20 +62,11 @@ def get_email_accounts(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-class SyncJobResponse(SQLModel):
-    """Response model for email account sync job."""
-
-    task_id: str
-    status: str
-    idempotency_key: str | None = None
-    email_account_id: str
-    message: str | None = None
-
-
-@router.post("/email-accounts/{email_account_id}/sync", response_model=SyncJobResponse)
+@router.post("/email-accounts/{email_account_id}/sync", response_model=WorkflowJob)
 def sync_email_account(
     email_account_id: str,
     email_account_service: EmailAccountServiceDep,
+    job_service: JobServiceDep,
     idempotency_key: str | None = Query(
         None, description="Optional idempotency key to prevent duplicate sync jobs"
     ),
@@ -82,10 +75,11 @@ def sync_email_account(
     Sync emails for an email account.
 
     1) Verifies existence of Email Account
-    2) Checks if credentials are valid (refresh token not expired)
+    2) Checks if there is already a running sync job
+    3) Checks if credentials are valid (refresh token not expired)
        - If expired, returns error suggesting re-authentication
-    3) Begins ingestion job using strategy pattern based on provider
-    4) Returns job status with task_id and idempotency_key
+    4) Begins ingestion job using strategy pattern based on provider
+    5) Returns job status with task_id and idempotency
 
     Args:
         email_account_id: UUID of the EmailAccount to sync
@@ -97,18 +91,28 @@ def sync_email_account(
     try:
         email_account_uuid = uuid.UUID(email_account_id)
 
-        # Start sync job (this will check credentials internally)
-        job_status = email_account_service.start_email_account_sync(
-            email_account_id=email_account_uuid, idempotency_key=idempotency_key
+        active_job, created = job_service.get_or_create_active_job(
+            resource_type=ResourceType.email_account,
+            resource_id=email_account_id,
+            job_type=JobType.mailbox_sync,
         )
 
-        return SyncJobResponse(
-            task_id=job_status["task_id"],
-            status=job_status["status"],
-            idempotency_key=job_status["idempotency_key"],
-            email_account_id=job_status["email_account_id"],
-            message="Sync job started successfully",
-        )
+        # Start sync job (this will check credentials internally) if job not already created.
+        if not created:
+            job_status = email_account_service.start_email_account_sync(
+                active_job.id,
+                email_account_id=email_account_uuid,
+                idempotency_key=idempotency_key,
+            )
+
+        return active_job
+        # return WorkflowJob(
+        #     task_id=job_status["task_id"],
+        #     status=job_status["status"],
+        #     idempotency_key=job_status["idempotency_key"],
+        #     email_account_id=job_status["email_account_id"],
+        #     message="Sync job started successfully",
+        # )
 
     except ValueError as e:
         # Credentials expired or invalid

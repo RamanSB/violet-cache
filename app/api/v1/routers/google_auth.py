@@ -7,7 +7,7 @@ from app.config import settings
 from app.dependencies import GoogleOAuthServiceDep
 from app.enums import EmailProvider
 from app.services.google_oauth_helper import GoogleOAuthHelper
-from app.tasks.celery.tasks import ingest_email_account
+from app.tasks.celery.tasks import sync_email_metadata_orchestrator
 
 # TODO: Replace this hardcoded user_id with JWT token extraction from request headers
 # For now, hardcoding a user_id for testing. In production, extract from JWT:

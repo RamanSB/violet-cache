@@ -1,9 +1,10 @@
 import uuid
+from fastapi import status
 from sqlmodel import Boolean, Field, SQLModel, TIMESTAMP
 from sqlmodel.main import EmailStr
 from datetime import timezone, datetime
 
-from app.enums import EmailProvider
+from app.enums import EmailProvider, JobStatus, JobType, ResourceType
 
 
 class BaseModel(SQLModel):
@@ -74,3 +75,11 @@ class Email(BaseModel, table=True):
 class EmailContent(BaseModel, table=True):
     __tablename__ = "email_content"
     external_id: str = Field(default=None, foreign_key="email.external_id")
+
+
+class WorkflowJob(BaseModel, table=True):
+    celery_task_id: uuid.UUID | None
+    job_type: JobType
+    status: JobStatus
+    resource_type: ResourceType
+    resource_id: uuid.UUID | None = Field(default=None, nullable=True)
