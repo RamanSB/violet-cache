@@ -23,6 +23,7 @@ class GmailStrategy(EmailProviderStrategy):
         user_identifier: str,
         max_results_per_page: int = 500,
         include_spam_trash: bool = False,
+        label_ids: List[str] = [],
     ) -> AsyncIterator[List[str]]:
         """List Gmail message IDs."""
         headers = {
@@ -34,6 +35,7 @@ class GmailStrategy(EmailProviderStrategy):
             headers=headers,
             max_results_per_page=max_results_per_page,
             include_spam_trash=include_spam_trash,
+            label_ids=label_ids,
         ):
             yield batch
 

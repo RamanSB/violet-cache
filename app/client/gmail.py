@@ -84,6 +84,7 @@ class GmailClient:
         max_results_per_page: int = 500,
         q: Optional[str] = None,
         include_spam_trash: bool = True,
+        label_ids: List[str] = [],
     ) -> AsyncIterator[List[str]]:
         """
         Recommended: async.
@@ -101,6 +102,8 @@ class GmailClient:
                 # IMPORTANT: serialize boolean in a Gmail-friendly way
                 "includeSpamTrash": include_spam_trash,
             }
+            if label_ids:
+                params["labelIds"] = label_ids
             if q:
                 params["q"] = q
             if page_token:

@@ -91,6 +91,23 @@ async def _sync_email_metadata_orchestrator(
                 access_token=auth_data.access_token,
                 user_identifier=user_identifier,
                 include_spam_trash=False,
+                label_ids=["INBOX"],
+            ):
+                # Fetch full message data
+                messages = await strategy.fetch_messages_by_ids(
+                    msg_ids,
+                    access_token=auth_data.access_token,
+                    user_identifier=user_identifier,
+                    format="metadata",
+                )
+                total += len(messages)
+                job_service.update_job(job_id, progress_current=total)
+
+            async for msg_ids in strategy.list_messages(
+                access_token=auth_data.access_token,
+                user_identifier=user_identifier,
+                include_spam_trash=False,
+                label_ids=["SENT"],
             ):
                 # Fetch full message data
                 messages = await strategy.fetch_messages_by_ids(
