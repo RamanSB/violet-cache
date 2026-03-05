@@ -4,8 +4,12 @@ from datetime import datetime, timezone
 from typing import List
 
 from app.celery_db import celery_session
+from app.repositories.email_repository import EmailRepository
+from app.services.email_ingestion import email_ingestion
+from app.services.email_ingestion.email_ingestion import EmailIngestionService
+from app.services.email_ingestion.filters.rules import should_keep_email_metadata
 from app.enums import JobStatus
-from app.models.models import EmailAccount
+from app.models.models import Email, EmailAccount
 from app.repositories.email_account import EmailAccountRepository
 from app.repositories.job_repository import JobRepository
 from app.services.job_service import JobService
@@ -34,14 +38,25 @@ def sync_email_metadata_orchestrator(
 
 
 async def _sync_email_metadata_orchestrator(
-    job_id: uuid.UUID, email_account_id: str, idempotency_key: str | None = None
+    job_id: uuid.UUID,
+    email_account_id: str,
+    idempotency_key: str | None = None,
 ):
     """Async implementation of email ingestion."""
     email_account_uuid = uuid.UUID(email_account_id)
     strategy = None
 
+    def _attach_context(m: dict, user_id: str, email_account_id: str) -> dict:
+        m["user_id"] = str(user_id)
+        m["email_account_id"] = str(email_account_id)
+        return m
+
     try:
         with celery_session() as session:
+            email_repository: EmailRepository = EmailRepository(session=session)
+            email_ingestion_service = EmailIngestionService(
+                email_repository=email_repository
+            )
             job_repository: JobRepository = JobRepository(session)
             job_service: JobService = JobService(job_repository=job_repository)
             job_service.update_job(job_id=job_id, status=JobStatus.running)
@@ -86,6 +101,9 @@ async def _sync_email_metadata_orchestrator(
             strategy = EmailProviderStrategyFactory.create(email_account.provider)
 
             total = 0
+            inbox_count = 0
+            retained_inbox_count = 0
+            sent_count = 0
             # Iterate over messages in batches of 500 (AsyncGenerator)
             async for msg_ids in strategy.list_messages(
                 access_token=auth_data.access_token,
@@ -101,7 +119,23 @@ async def _sync_email_metadata_orchestrator(
                     user_identifier=user_identifier,
                     format="metadata",
                 )
+                inbox_count += len(messages)
+                kept = []
+                for m in messages:
+                    decision = should_keep_email_metadata(m)
+                    if decision.keep:
+                        _attach_context(
+                            m,
+                            user_id=email_account.user_id,
+                            email_account_id=email_account.id,
+                        )
+                        kept.append(m)
+                    else:
+                        print(f"{decision.reason} dropping {m['snippet']}")
+                print(f"Retained {len(kept)} messages in this batch")
                 total += len(messages)
+                retained_inbox_count += len(kept)
+                email_ingestion_service.batch_upsert_email_metadata(data=kept)
                 job_service.update_job(job_id, progress_current=total)
 
             async for msg_ids in strategy.list_messages(
@@ -118,14 +152,25 @@ async def _sync_email_metadata_orchestrator(
                     user_identifier=user_identifier,
                     format="metadata",
                 )
-                total += len(messages)
+                for m in messages:
+                    _attach_context(
+                        m,
+                        user_id=email_account.user_id,
+                        email_account_id=email_account.id,
+                    )
+                sent_count += len(messages)
                 job_service.update_job(job_id, progress_current=total)
+                total += len(messages)
+                email_ingestion_service.batch_upsert_email_metadata(data=messages)
 
             job_service.update_job(
                 job_id,
                 status=JobStatus.succeeded,
                 completed_at=datetime.now(timezone.utc),
                 progress_total=total,
+            )
+            print(
+                f"inbox_count: {inbox_count}, retained_inbox_count: {retained_inbox_count}, sent_count: {sent_count}"
             )
             return {"status": "success", "message_count": total}
 

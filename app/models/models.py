@@ -64,11 +64,12 @@ class Email(BaseModel, table=True):
     user_id: uuid.UUID = Field(default=None, foreign_key="user.id")
     email_account_id: uuid.UUID = Field(default=None, foreign_key="email_account.id")
     external_id: str
+    snippet: str
     thread_id: str
     sender: EmailStr
-    receiver: str  # Can be multiple emails store the entire sring
+    receiver: str | None  # Can be multiple emails store the entire sring
     cc: str | None
-    subject: str
+    subject: str | None
     date_received: datetime
     # label_ids: [str]
     size: int

@@ -1,14 +1,20 @@
 from typing import Annotated
 from fastapi import Depends
 from app.db import SessionDep
+from app.repositories.email_repository import EmailRepository
 from app.repositories.job_repository import JobRepository
 from app.repositories.user import UserRepository
 from app.repositories.google_auth import GoogleAuthDataRepository
 from app.repositories.email_account import EmailAccountRepository
+from app.services.email_ingestion.email_ingestion import EmailIngestionService
 from app.services.google_oauth_service import GoogleOAuthService
 from app.services.job_service import JobService
 from app.services.user_service import UserService
 from app.services.email_account_service import EmailAccountService
+
+
+def get_email_repository(session: SessionDep) -> EmailRepository:
+    return EmailRepository(session)
 
 
 def get_job_repository(session: SessionDep) -> JobRepository:
@@ -41,6 +47,12 @@ def get_job_service(
     job_repo: Annotated[JobRepository, Depends(get_job_repository)],
 ) -> JobService:
     return JobService(job_repo)
+
+
+def get_email_ingestion_service(
+    email_repo: Annotated[EmailRepository, Depends(get_email_account_repository)],
+) -> EmailIngestionService:
+    return EmailIngestionService(email_repository=email_repo)
 
 
 def get_email_account_service(

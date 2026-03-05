@@ -84,7 +84,6 @@ def sync_email_account(
     Args:
         email_account_id: UUID of the EmailAccount to sync
         idempotency_key: Optional key to prevent duplicate job submissions
-
     Returns:
         SyncJobResponse with task_id, status, and idempotency_key
     """

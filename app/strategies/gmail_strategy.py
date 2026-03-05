@@ -21,7 +21,7 @@ class GmailStrategy(EmailProviderStrategy):
         *,
         access_token: str,
         user_identifier: str,
-        max_results_per_page: int = 500,
+        max_results_per_page: int = 500,  # TODO: Change to 500 (after testing workflow)
         include_spam_trash: bool = False,
         label_ids: List[str] = [],
         q: str | None = None,
