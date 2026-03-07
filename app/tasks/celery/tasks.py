@@ -4,8 +4,10 @@ from datetime import datetime, timezone
 from typing import List
 
 from app.celery_db import celery_session
+from app.parsers.parser_factory import EmailContentParserFactory
 from app.repositories import email_repository
 from app.repositories.email_repository import EmailRepository
+from app.schema.schemas import ParsedEmailContent
 from app.services.email_ingestion import email_ingestion
 from app.services.email_ingestion.email_ingestion import EmailIngestionService
 from app.services.email_ingestion.filters.rules import should_keep_email_metadata
@@ -400,6 +402,7 @@ async def _fetch_email_content(job_id: str, email_account_id: str) -> None:
 
             # Provider-specific strategy (e.g., Gmail) for fetching full message content
             strategy = EmailProviderStrategyFactory.create(email_account.provider)
+            email_parser = EmailContentParserFactory.create(email_account.provider)
 
             # Total number of unique Email rows for this account
             total_messages = email_repository.get_email_count(
@@ -407,7 +410,7 @@ async def _fetch_email_content(job_id: str, email_account_id: str) -> None:
             )
 
             offset = 0
-            batch_size = 500
+            batch_size = 100
             processed = 0
 
             # Read emails in batches of 500 using offset; stop when offset exceeds total_messages.
@@ -430,6 +433,9 @@ async def _fetch_email_content(job_id: str, email_account_id: str) -> None:
                     user_identifier=user_identifier,
                     format="full",
                 )
+
+                for message in messages:
+                    parsed_email: ParsedEmailContent = email_parser.parse(message)
 
                 # TODO: Parse MIME parts and persist EmailContent via EmailIngestionService.
                 processed += len(messages)

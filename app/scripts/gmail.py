@@ -191,7 +191,9 @@ if __name__ == "__main__":
     # print(f"Wrote {len(results)} messages to {out_path}")
     # asyncio.run(test_email_fetch())
     # asyncio.run(test_fetch_messages_by_thread())
-    expand_emails_per_thread(
-        job_id="30e267d5-1957-46bc-9d83-5ea9439eeb5c",
-        email_account_id="898c907d-d5e8-4a11-81cd-2f6a4d1a0a30",
-    )
+    # expand_emails_per_thread(
+    #     job_id="30e267d5-1957-46bc-9d83-5ea9439eeb5c",
+    #     email_account_id="898c907d-d5e8-4a11-81cd-2f6a4d1a0a30",
+    # )
+
+    pass

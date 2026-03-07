@@ -1,3 +1,4 @@
+from typing import List
 import uuid
 from fastapi import status
 from sqlmodel import Boolean, Field, SQLModel, TIMESTAMP, UniqueConstraint
@@ -82,6 +83,8 @@ class EmailContent(BaseModel, table=True):
     text_plain: str | None
     text_html: str | None
     normalized_text: str | None
+    # attachments: List[AttachmentMeta]
+    # inline_images: List[InlineImageMeta]
 
 
 class WorkflowJob(BaseModel, table=True):
