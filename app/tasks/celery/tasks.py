@@ -329,3 +329,136 @@ async def _expand_emails_per_thread(*, job_id: str, email_account_id: str):
     finally:
         if strategy:
             await strategy.close()
+
+
+@app.task(name="fetch_email_content")
+def fetch_email_content(job_id: str, email_account_id: str):
+    asyncio.run(_fetch_email_content(job_id=job_id, email_account_id=email_account_id))
+
+
+async def _fetch_email_content(job_id: str, email_account_id: str) -> None:
+    """
+    - Load emails from DB in batches of 500
+    - Fetch Email Content
+    - Parse email content from payload (https://developers.google.com/workspace/gmail/api/reference/rest/v1/Format?_gl=1*1ptuhwr*_up*MQ..*_ga*NzM0MDIyMjIwLjE3NzI3NjcwMDc.*_ga_SM8HXJ53K2*czE3NzI3NjcwMDckbzEkZzAkdDE3NzI3NjcwMDckajYwJGwwJGgw)
+    - Use BeautifulSoup / Go though the individual mime parts in payload and normalize text.
+    - Store in DB
+    """
+    strategy = None
+    try:
+        with celery_session() as session:
+            email_repository: EmailRepository = EmailRepository(session=session)
+            # NOTE: EmailIngestionService will be extended to handle content writes.
+            email_ingestion_service = EmailIngestionService(
+                email_repository=email_repository
+            )
+            job_repository: JobRepository = JobRepository(session)
+            job_service: JobService = JobService(job_repository=job_repository)
+
+            # Mark job as running in CONTENT_FETCH phase
+            job_service.update_job(
+                job_id=job_id,
+                status=JobStatus.running,
+                phase=JobPhase.CONTENT_FETCH,
+            )
+
+            # Load email account
+            email_account_repo = EmailAccountRepository(session=session)
+            email_account_uuid = uuid.UUID(email_account_id)
+            email_account: EmailAccount | None = email_account_repo.find_by_id(
+                email_account_uuid
+            )
+
+            if email_account is None:
+                return {
+                    "status": "error",
+                    "message": f"EmailAccount with id {email_account_id} not found",
+                }
+
+            # Load provider-specific auth data
+            auth_data_strategy = AuthDataStrategyFactory.create(email_account.provider)
+            auth_data = auth_data_strategy.load_auth_data(session, email_account_uuid)
+
+            if auth_data is None:
+                return {
+                    "status": "error",
+                    "message": f"No auth data found for EmailAccount {email_account_id}",
+                }
+
+            if not auth_data.access_token:
+                return {
+                    "status": "error",
+                    "message": f"Access token not available. Please re-authenticate {email_account.provider}.",
+                }
+
+            user_identifier = auth_data_strategy.get_user_identifier(auth_data)
+            if not user_identifier:
+                return {
+                    "status": "error",
+                    "message": "User identifier not found in auth data",
+                }
+
+            # Provider-specific strategy (e.g., Gmail) for fetching full message content
+            strategy = EmailProviderStrategyFactory.create(email_account.provider)
+
+            # Total number of unique Email rows for this account
+            total_messages = email_repository.get_email_count(
+                email_account_id=email_account_uuid
+            )
+
+            offset = 0
+            batch_size = 500
+            processed = 0
+
+            # Read emails in batches of 500 using offset; stop when offset exceeds total_messages.
+            while offset < total_messages:
+                emails_batch = email_repository.get_emails_batch(
+                    email_account_id=email_account_uuid,
+                    offset=offset,
+                    limit=batch_size,
+                )
+
+                if not emails_batch:
+                    break
+
+                message_ids = [email.external_id for email in emails_batch]
+
+                # Fetch full message content for this batch
+                messages = await strategy.fetch_messages_by_ids(
+                    message_ids,
+                    access_token=auth_data.access_token,
+                    user_identifier=user_identifier,
+                    format="full",
+                )
+
+                # TODO: Parse MIME parts and persist EmailContent via EmailIngestionService.
+                processed += len(messages)
+
+                job_service.update_job(job_id, progress_current=processed)
+
+                offset += len(emails_batch)
+
+            job_service.update_job(
+                job_id=job_id,
+                status=JobStatus.succeeded,
+                completed_at=datetime.now(timezone.utc),
+                progress_total=processed,
+            )
+
+            return {
+                "status": "success",
+                "message_count": processed,
+            }
+
+    except Exception as ex:
+        with celery_session() as session:
+            job_repo = JobRepository(session=session)
+            job_service = JobService(job_repo)
+            job_service.update_job(
+                job_id=job_id, status=JobStatus.failed, error_message=str(ex)
+            )
+        return {"status": "error", "message": str(ex)}
+
+    finally:
+        if strategy:
+            await strategy.close()

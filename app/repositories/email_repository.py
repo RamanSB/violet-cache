@@ -21,6 +21,34 @@ class EmailRepository:
         self.session.commit()
         # return res.rowcount
 
+    def get_email_count(self, *, email_account_id: uuid.UUID) -> int:
+        """Return total number of Email rows for the given account."""
+        stmt = select(func.count(Email.id)).where(
+            Email.email_account_id == email_account_id
+        )
+        result = self.session.exec(stmt).first()
+        return int(result or 0)
+
+    def get_emails_batch(
+        self,
+        *,
+        email_account_id: uuid.UUID,
+        offset: int = 0,
+        limit: int = 500,
+    ) -> List[Email]:
+        """
+        Return a page of Email rows for the given account.
+        """
+        stmt = (
+            select(Email)
+            .where(Email.email_account_id == email_account_id)
+            .order_by(Email.created_at)
+            .offset(offset)
+            .limit(limit)
+        )
+        results = self.session.exec(stmt).all()
+        return list(results)
+
     def get_distinct_thread_count(self, *, email_account_id: uuid.UUID):
         stmt = select(func.count(func.distinct(Email.thread_id))).where(
             Email.email_account_id == email_account_id

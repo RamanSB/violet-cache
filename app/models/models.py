@@ -77,7 +77,11 @@ class Email(BaseModel, table=True):
 
 class EmailContent(BaseModel, table=True):
     __tablename__ = "email_content"
-    external_id: str = Field(default=None, foreign_key="email.external_id")
+    email_id: str = Field(default=None, foreign_key="email.id")
+    mime_type: str | None
+    text_plain: str | None
+    text_html: str | None
+    normalized_text: str | None
 
 
 class WorkflowJob(BaseModel, table=True):
