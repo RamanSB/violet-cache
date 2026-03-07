@@ -4,7 +4,7 @@ from sqlmodel import Boolean, Field, SQLModel, TIMESTAMP, UniqueConstraint
 from sqlmodel.main import EmailStr
 from datetime import timezone, datetime
 
-from app.enums import EmailProvider, JobStatus, JobType, ResourceType
+from app.enums import EmailProvider, JobPhase, JobStatus, JobType, ResourceType
 
 
 class BaseModel(SQLModel):
@@ -84,6 +84,7 @@ class WorkflowJob(BaseModel, table=True):
     celery_task_id: uuid.UUID | None
     job_type: JobType
     status: JobStatus
+    phase: JobPhase | None
     resource_type: ResourceType
     progress_current: int = Field(default=0)
     progress_total: int = Field(default=0)

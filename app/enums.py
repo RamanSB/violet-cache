@@ -18,6 +18,14 @@ class JobType(str, Enum):
     mailbox_sync = "mailbox_sync"
 
 
+class JobPhase(str, Enum):
+    METADATA_DISCOVERY = "metadata_discovery"
+    THREAD_EXPANSION = "thread_expansion"
+    CONTENT_FETCH = "content_fetch"
+    EMBEDDING = "embedding"
+    COMPLETE = "complete"
+
+
 class ResourceType(str, Enum):
     email_account = "email_account"
     casefile = "casefile"

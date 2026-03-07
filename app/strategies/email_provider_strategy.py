@@ -61,6 +61,28 @@ class EmailProviderStrategy(ABC):
         pass
 
     @abstractmethod
+    async def fetch_messages_by_thread_ids(
+        self,
+        thread_ids: List[str],
+        *,
+        access_token: str,
+        user_identifier: str,
+        format: str | None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch full message data by thread IDs.
+
+        Args:
+            thread_ids: List of thread IDs to fetch
+            access_token: OAuth access token
+            user_identifier: Provider-specific user identifier
+
+        Returns:
+            List of message dictionaries
+        """
+        pass
+
+    @abstractmethod
     async def close(self) -> None:
         """Close any open connections/resources."""
         pass

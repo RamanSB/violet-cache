@@ -4,11 +4,12 @@ from datetime import datetime, timezone
 from typing import List
 
 from app.celery_db import celery_session
+from app.repositories import email_repository
 from app.repositories.email_repository import EmailRepository
 from app.services.email_ingestion import email_ingestion
 from app.services.email_ingestion.email_ingestion import EmailIngestionService
 from app.services.email_ingestion.filters.rules import should_keep_email_metadata
-from app.enums import JobStatus
+from app.enums import JobPhase, JobStatus
 from app.models.models import Email, EmailAccount
 from app.repositories.email_account import EmailAccountRepository
 from app.repositories.job_repository import JobRepository
@@ -16,6 +17,13 @@ from app.services.job_service import JobService
 from app.strategies.auth_data_strategy_factory import AuthDataStrategyFactory
 from app.strategies.strategy_factory import EmailProviderStrategyFactory
 from app.tasks.celery.celery import app
+
+
+# Move to utils
+def _attach_context(m: dict, user_id: str, email_account_id: str) -> dict:
+    m["user_id"] = str(user_id)
+    m["email_account_id"] = str(email_account_id)
+    return m
 
 
 @app.task(name="ingest_email_account")
@@ -46,11 +54,6 @@ async def _sync_email_metadata_orchestrator(
     email_account_uuid = uuid.UUID(email_account_id)
     strategy = None
 
-    def _attach_context(m: dict, user_id: str, email_account_id: str) -> dict:
-        m["user_id"] = str(user_id)
-        m["email_account_id"] = str(email_account_id)
-        return m
-
     try:
         with celery_session() as session:
             email_repository: EmailRepository = EmailRepository(session=session)
@@ -59,7 +62,11 @@ async def _sync_email_metadata_orchestrator(
             )
             job_repository: JobRepository = JobRepository(session)
             job_service: JobService = JobService(job_repository=job_repository)
-            job_service.update_job(job_id=job_id, status=JobStatus.running)
+            job_service.update_job(
+                job_id=job_id,
+                status=JobStatus.running,
+                phase=JobPhase.METADATA_DISCOVERY,
+            )
             # Load email account
             email_account_repo = EmailAccountRepository(session=session)
             email_account: EmailAccount | None = email_account_repo.find_by_id(
@@ -187,5 +194,138 @@ async def _sync_email_metadata_orchestrator(
             await strategy.close()
 
 
-## TODO: Create a predicate function that decides whether we retain email or not.
-## Move to a dedicated service at a later time.
+@app.task(name="thread_expansion")
+def expand_emails_per_thread(job_id: str, email_account_id: str):
+    return asyncio.run(
+        _expand_emails_per_thread(job_id=job_id, email_account_id=email_account_id)
+    )
+
+
+async def _expand_emails_per_thread(*, job_id: str, email_account_id: str):
+    strategy = None
+    try:
+        with celery_session() as session:
+            email_repository: EmailRepository = EmailRepository(session=session)
+            email_ingestion_service = EmailIngestionService(
+                email_repository=email_repository
+            )
+            job_repository: JobRepository = JobRepository(session)
+            job_service: JobService = JobService(job_repository=job_repository)
+
+            # Mark job as running in THREAD_EXPANSION phase
+            job_service.update_job(
+                job_id=job_id,
+                status=JobStatus.running,
+                phase=JobPhase.THREAD_EXPANSION,
+            )
+
+            # Load email account
+            email_account_repo = EmailAccountRepository(session=session)
+            email_account_uuid = uuid.UUID(email_account_id)
+            email_account: EmailAccount | None = email_account_repo.find_by_id(
+                email_account_uuid
+            )
+
+            if email_account is None:
+                return {
+                    "status": "error",
+                    "message": f"EmailAccount with id {email_account_id} not found",
+                }
+
+            # Load provider-specific auth data
+            auth_data_strategy = AuthDataStrategyFactory.create(email_account.provider)
+            auth_data = auth_data_strategy.load_auth_data(session, email_account_uuid)
+
+            if auth_data is None:
+                return {
+                    "status": "error",
+                    "message": f"No auth data found for EmailAccount {email_account_id}",
+                }
+
+            if not auth_data.access_token:
+                return {
+                    "status": "error",
+                    "message": f"Access token not available. Please re-authenticate {email_account.provider}.",
+                }
+
+            user_identifier = auth_data_strategy.get_user_identifier(auth_data)
+            if not user_identifier:
+                return {
+                    "status": "error",
+                    "message": "User identifier not found in auth data",
+                }
+
+            # Create provider strategy (will delegate to the appropriate client, e.g. GmailClient)
+            strategy = EmailProviderStrategyFactory.create(email_account.provider)
+
+            total_messages = 0
+            offset = 0
+            limit = 500
+            unique_thread_count = email_repository.get_distinct_thread_count(
+                email_account_id=email_account_id
+            )
+
+            while offset < unique_thread_count:
+                thread_ids = email_repository.get_distinct_thread_ids(
+                    user_id=email_account.user_id,
+                    email_account_id=email_account.id,
+                    offset=offset,
+                    limit=limit,
+                )
+
+                if not thread_ids:
+                    break
+
+                # Fetch all messages for these thread IDs via the provider strategy
+                messages = await strategy.fetch_messages_by_thread_ids(
+                    thread_ids,
+                    access_token=auth_data.access_token,
+                    user_identifier=user_identifier,
+                    format="metadata",
+                )
+
+                # Attach context so the ingestion service can map to Email rows
+                kept = []
+                for m in messages:
+                    decision = should_keep_email_metadata(m)
+                    if decision.keep:
+                        _attach_context(
+                            m,
+                            user_id=email_account.user_id,
+                            email_account_id=email_account.id,
+                        )
+                        kept.append(m)
+                    else:
+                        print(f"{decision.reason} dropping {m['snippet']}")
+
+                email_ingestion_service.batch_upsert_email_metadata(data=kept)
+                total_messages += len(messages)
+
+                job_service.update_job(job_id, progress_current=total_messages)
+
+                offset += len(thread_ids)
+
+            job_service.update_job(
+                job_id,
+                status=JobStatus.succeeded,
+                completed_at=datetime.now(timezone.utc),
+                progress_total=total_messages,
+            )
+
+            return {
+                "status": "success",
+                "message_count": total_messages,
+            }
+
+    except Exception as ex:
+        with celery_session() as session:
+            job_repo = JobRepository(session=session)
+            job_service = JobService(job_repo)
+            job_service.update_job(
+                job_id=job_id, status=JobStatus.failed, error_message=str(ex)
+            )
+        return {"status": "error", "message": str(ex)}
+
+    finally:
+        if strategy:
+            await strategy.close()

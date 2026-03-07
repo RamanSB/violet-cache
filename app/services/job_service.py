@@ -58,6 +58,7 @@ class JobService:
         self,
         job_id: uuid.UUID,
         *,
+        phase=None,
         status=None,
         error_message=None,
         progress_current=None,
@@ -80,6 +81,9 @@ class JobService:
 
         # if cursor is not None:
         #     job.cursor = cursor
+
+        if phase is not None:
+            job.phase = phase
 
         if error_message is not None:
             job.error_message = error_message

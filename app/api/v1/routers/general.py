@@ -105,13 +105,6 @@ def sync_email_account(
             )
 
         return active_job
-        # return WorkflowJob(
-        #     task_id=job_status["task_id"],
-        #     status=job_status["status"],
-        #     idempotency_key=job_status["idempotency_key"],
-        #     email_account_id=job_status["email_account_id"],
-        #     message="Sync job started successfully",
-        # )
 
     except ValueError as e:
         # Credentials expired or invalid

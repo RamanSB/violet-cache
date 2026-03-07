@@ -6,11 +6,14 @@ from typing import Any, Dict, List
 
 import httpx
 from aiolimiter import AsyncLimiter
-from sqlmodel import Session
+from sqlmodel import Session, func, select
 
 from app.client.gmail import GmailClient
 from app.db import engine
+from app.enums import HARDCODED_USER_ID
+from app.models.models import Email
 from app.repositories.google_auth import GoogleAuthDataRepository
+from app.tasks.celery.tasks import expand_emails_per_thread
 
 BASE_URL = "https://gmail.googleapis.com/gmail/v1"
 OAUTH_ACCESS_TOKEN = ""
@@ -55,7 +58,7 @@ async def get_with_backoff(
     raise RuntimeError("Retries exhausted")
 
 
-async def fetch_message(
+async def fetch_message_content(
     client: httpx.AsyncClient,
     user_id: str,
     msg_id: str,
@@ -63,6 +66,18 @@ async def fetch_message(
     # Pull less data if you don’t need full payload:
     # format=metadata is usually enough, adjust as needed.
     url = f"{BASE_URL}/users/{user_id}/messages/{msg_id}?format=metadata"
+    r = await get_with_backoff(client, url)
+    return r.json()
+
+
+async def fetch_message_content(
+    client: httpx.AsyncClient,
+    user_id: str,
+    msg_id: str,
+) -> Dict[str, Any]:
+    # Pull less data if you don’t need full payload:
+    # format=metadata is usually enough, adjust as needed.
+    url = f"{BASE_URL}/users/{user_id}/threads/{msg_id}?format=metadata"
     r = await get_with_backoff(client, url)
     return r.json()
 
@@ -82,7 +97,7 @@ async def fetch_messages_by_ids(
         async def one(mid: str) -> Dict[str, Any]:
             async with sem:
                 async with limiter:
-                    return await fetch_message(client, user_id, mid)
+                    return await fetch_message_content(client, user_id, mid)
 
         # gather schedules all coroutines; limiter+sem prevents flooding
         coros = [one(mid) for mid in message_ids]
@@ -90,10 +105,10 @@ async def fetch_messages_by_ids(
 
 
 async def test_email_fetch():
-    MY_USER_ID_PK = "6594e29d-2651-4346-8b68-65d50ec278a6"
+
     with Session(engine) as session:
         google_auth_repo = GoogleAuthDataRepository(session)
-        google_auth_data = google_auth_repo.find_by_user_id(MY_USER_ID_PK)
+        google_auth_data = google_auth_repo.find_by_user_id(HARDCODED_USER_ID)
         headers = {
             "Authorization": f"Bearer {google_auth_data.access_token}",
             "Content-Type": "application/json",
@@ -125,6 +140,41 @@ async def test_email_fetch():
             await gmail_client.close()
 
 
+async def test_fetch_messages_by_thread():
+    with Session(engine) as session:
+        google_auth_repo = GoogleAuthDataRepository(session)
+        google_auth_data = google_auth_repo.find_by_user_id(HARDCODED_USER_ID)
+        headers = {
+            "Authorization": f"Bearer {google_auth_data.access_token}",
+            "Content-Type": "application/json",
+        }
+        gmail_client = GmailClient()
+
+        stmt = (
+            select(Email.thread_id)
+            .where(Email.user_id == HARDCODED_USER_ID)
+            .group_by(Email.thread_id)
+            .having(func.count() > 1)
+            .order_by(func.count().desc())
+        )
+        thread_ids = session.exec(stmt).all()
+        print(len(thread_ids))
+        print(len(set(thread_ids)))
+
+        try:
+            msgs = await gmail_client.fetch_messages_by_thread_ids(
+                thread_ids,
+                google_user_id=google_auth_data.google_user_id,
+                headers=headers,
+                format="metadata",
+            )
+
+        except Exception as ex:
+            print(f"Error while fetching message by thread: {ex}")
+        finally:
+            await gmail_client.close()
+
+
 if __name__ == "__main__":
     # import pathlib
 
@@ -139,4 +189,9 @@ if __name__ == "__main__":
     # results = asyncio.run(fetch_messages_by_ids(sample, concurrency=15, rps=50))
     # out_path.write_text(json.dumps(results, indent=2))
     # print(f"Wrote {len(results)} messages to {out_path}")
-    asyncio.run(test_email_fetch())
+    # asyncio.run(test_email_fetch())
+    # asyncio.run(test_fetch_messages_by_thread())
+    expand_emails_per_thread(
+        job_id="30e267d5-1957-46bc-9d83-5ea9439eeb5c",
+        email_account_id="898c907d-d5e8-4a11-81cd-2f6a4d1a0a30",
+    )

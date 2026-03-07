@@ -163,10 +163,13 @@ class EmailAccountService:
         #     )
 
         # Submit Celery task
-        task = sync_email_metadata_orchestrator.delay(
-            job_id=job_id,
-            email_account_id=str(email_account_id),
-            idempotency_key=idempotency_key,
+        task = sync_email_metadata_orchestrator.apply_async(
+            kwargs={
+                "job_id": job_id,
+                "email_account_id": str(email_account_id),
+                "idempotency_key": idempotency_key,
+            },
+            task_id=job_id,
         )
 
         return {

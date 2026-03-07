@@ -1,5 +1,6 @@
 import asyncio
 import random
+from traceback import format_tb
 from typing import Any, AsyncIterator, Dict, List, Optional
 
 import httpx
@@ -147,4 +148,27 @@ class GmailClient:
                     return r.json()
 
         coros = [one(mid) for mid in message_ids]
+        return await asyncio.gather(*coros)
+
+    async def fetch_messages_by_thread_ids(
+        self,
+        thread_ids: List[str],
+        *,
+        google_user_id: str,
+        headers: dict,
+        format: str = "full",
+    ) -> List[Dict[Any, Any]]:
+
+        async def one(tid: str) -> List[Dict[str, Any]]:
+            async with self._sem:
+                async with self._limiter:
+                    url = f"{self.base_url}/users/{google_user_id}/threads/{tid}?format={format}"
+                    r = await self._get_with_backoff(url, headers=headers)
+                    r_json = r.json()
+                    print(
+                        f"Fetched {len(r_json['messages'])} messages for thread id ({tid})"
+                    )
+                    return r_json
+
+        coros = [one(tid) for tid in thread_ids]
         return await asyncio.gather(*coros)

@@ -58,6 +58,34 @@ class GmailStrategy(EmailProviderStrategy):
             message_ids, headers=headers, google_user_id=user_identifier, format=format
         )
 
+    async def fetch_messages_by_thread_ids(
+        self,
+        thread_ids: List[str],
+        *,
+        access_token: str,
+        user_identifier: str,
+        format: str = "metadata",
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch Gmail messages by thread IDs and return a flat list of messages.
+        """
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Accept": "application/json",
+        }
+        threads = await self._client.fetch_messages_by_thread_ids(
+            thread_ids,
+            google_user_id=user_identifier,
+            headers=headers,
+            format=format,
+        )
+
+        messages: List[Dict[str, Any]] = []
+        for thread in threads:
+            for msg in thread.get("messages", []):
+                messages.append(msg)
+        return messages
+
     async def close(self) -> None:
         """Close Gmail client connections."""
         await self._client.close()
