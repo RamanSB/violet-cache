@@ -57,3 +57,9 @@ class EmailIngestionService:
         except Exception as ex:
             print(f"Exception in batch_upsert_email_metadata: {ex}")
             raise ex
+
+    def batch_upsert_email_content(self, *, data: List[Dict]):
+        try:
+            pass
+        except Exception as ex:
+            pass

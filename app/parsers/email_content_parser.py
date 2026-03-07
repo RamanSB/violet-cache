@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 
+from app.schema.schemas import ParsedEmailContent
+
 
 class EmailContentParser(ABC):
     """
@@ -8,7 +10,7 @@ class EmailContentParser(ABC):
     """
 
     @abstractmethod
-    def parse(self, message: Dict[str, Any]) -> None:  # ParsedEmailContent:
+    def parse(self, message: Dict[str, Any]) -> ParsedEmailContent:
         """
         Parse a provider message payload into canonical email content.
 

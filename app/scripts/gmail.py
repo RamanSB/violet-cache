@@ -13,7 +13,7 @@ from app.db import engine
 from app.enums import HARDCODED_USER_ID
 from app.models.models import Email
 from app.repositories.google_auth import GoogleAuthDataRepository
-from app.tasks.celery.tasks import expand_emails_per_thread
+from app.tasks.celery.tasks import expand_emails_per_thread, fetch_email_content
 
 BASE_URL = "https://gmail.googleapis.com/gmail/v1"
 OAUTH_ACCESS_TOKEN = ""
@@ -196,4 +196,7 @@ if __name__ == "__main__":
     #     email_account_id="898c907d-d5e8-4a11-81cd-2f6a4d1a0a30",
     # )
 
-    pass
+    fetch_email_content(
+        job_id="30e267d5-1957-46bc-9d83-5ea9439eeb5c",
+        email_account_id="898c907d-d5e8-4a11-81cd-2f6a4d1a0a30",
+    )

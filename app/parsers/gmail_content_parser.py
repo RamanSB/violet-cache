@@ -18,18 +18,17 @@ class GmailContentParser(EmailContentParser):
 
         text_plain, text_html = self._extract_bodies(payload)
 
-        headers = self._headers_to_dict(payload.get("headers", []))
+        # headers = self._headers_to_dict(payload.get("headers", []))
 
         normalized_text = self._normalize_text(text_plain, text_html)
 
-        return None
-        # return ParsedEmailContent(
-        #     mime_type=mime_type,
-        #     text_plain=text_plain,
-        #     text_html=text_html,
-        #     normalized_text=normalized_text,
-        #     headers=headers,
-        # )
+        return ParsedEmailContent(
+            container_mime_type=mime_type,
+            text_plain=text_plain,
+            text_html=text_html,
+            normalized_text=normalized_text,
+            # headers=headers,
+        )
 
     def _extract_bodies(
         self, payload: Dict[str, Any]
