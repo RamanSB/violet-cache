@@ -2,7 +2,9 @@ from typing import Dict, List
 from email.utils import parsedate, parsedate_to_datetime
 import uuid
 from app.models.models import Email
+from app.repositories.email_content_repository import EmailContentRepository
 from app.repositories.email_repository import EmailRepository
+from app.schema.schemas import ParsedEmailContent
 
 
 def _convert_gmail_msg_to_email(gmail_message) -> Email:
@@ -47,8 +49,13 @@ def _convert_gmail_msg_to_email(gmail_message) -> Email:
 
 class EmailIngestionService:
 
-    def __init__(self, email_repository: EmailRepository):
+    def __init__(
+        self,
+        email_repository: EmailRepository,
+        email_content_repository: EmailContentRepository = None,
+    ):
         self.email_repo = email_repository
+        self.email_content_repo = email_content_repository
 
     def batch_upsert_email_metadata(self, *, data: List[Dict]):
         try:
@@ -58,8 +65,10 @@ class EmailIngestionService:
             print(f"Exception in batch_upsert_email_metadata: {ex}")
             raise ex
 
-    def batch_upsert_email_content(self, *, data: List[Dict]):
+    def batch_upsert_email_content(self, *, data: List[ParsedEmailContent]):
         try:
-            pass
+            rows = [obj.model_dump() for obj in data]
+            self.email_content_repo.batch_upsert_email_content(rows=rows)
         except Exception as ex:
-            pass
+            print(f"Exception in batch_upsert_email_content: {ex}")
+            raise ex

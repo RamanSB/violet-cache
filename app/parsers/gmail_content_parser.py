@@ -10,25 +10,37 @@ from app.schema.schemas import ParsedEmailContent
 
 
 class GmailContentParser(EmailContentParser):
+    """
+    TODO:
+    a) Handle parsing attachments
+    b) Handle parsing mime types together (currently only taking text over html)
+    c) Understand the data returned in the API in detail to extract as much value as possible.
+    D - Now: Create a Normalizer class / instance var that will ensure we
+    only retain data from the current message and not the entire text appended email chain.
+    """
 
     def parse(self, message: Dict[str, Any]) -> ParsedEmailContent:
-        payload = message.get("payload", {})
+        try:
+            payload = message.get("payload", {})
 
-        mime_type = payload.get("mimeType")
+            mime_type = payload.get("mimeType")
 
-        text_plain, text_html = self._extract_bodies(payload)
+            text_plain, text_html = self._extract_bodies(payload)
 
-        # headers = self._headers_to_dict(payload.get("headers", []))
+            # headers = self._headers_to_dict(payload.get("headers", []))
 
-        normalized_text = self._normalize_text(text_plain, text_html)
+            normalized_text = self._normalize_text(text_plain, text_html)
 
-        return ParsedEmailContent(
-            container_mime_type=mime_type,
-            text_plain=text_plain,
-            text_html=text_html,
-            normalized_text=normalized_text,
-            # headers=headers,
-        )
+            return ParsedEmailContent(
+                container_mime_type=mime_type,
+                text_plain=text_plain,
+                text_html=text_html,
+                normalized_text=normalized_text,
+                # headers=headers,
+            )
+        except Exception as ex:
+            print(f"Unable to parse message id ({message['id']}): {ex}")
+            return None
 
     def _extract_bodies(
         self, payload: Dict[str, Any]

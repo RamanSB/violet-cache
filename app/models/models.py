@@ -78,8 +78,8 @@ class Email(BaseModel, table=True):
 
 class EmailContent(BaseModel, table=True):
     __tablename__ = "email_content"
-    email_id: str = Field(default=None, foreign_key="email.id")
-    mime_type: str | None
+    email_id: uuid.UUID = Field(default=None, foreign_key="email.id")
+    container_mime_type: str | None
     text_plain: str | None
     text_html: str | None
     normalized_text: str | None

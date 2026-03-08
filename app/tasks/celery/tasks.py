@@ -5,8 +5,8 @@ from typing import List
 
 from app.celery_db import celery_session
 from app.parsers.parser_factory import EmailContentParserFactory
-from app.repositories import email_repository
 from app.repositories.email_repository import EmailRepository
+from app.repositories.email_content_repository import EmailContentRepository
 from app.schema.schemas import ParsedEmailContent
 from app.services.email_ingestion import email_ingestion
 from app.services.email_ingestion.email_ingestion import EmailIngestionService
@@ -350,9 +350,13 @@ async def _fetch_email_content(job_id: str, email_account_id: str) -> None:
     try:
         with celery_session() as session:
             email_repository: EmailRepository = EmailRepository(session=session)
+            email_content_repository: EmailContentRepository = EmailContentRepository(
+                session=session
+            )
             # NOTE: EmailIngestionService will be extended to handle content writes.
             email_ingestion_service = EmailIngestionService(
-                email_repository=email_repository
+                email_repository=email_repository,
+                email_content_repository=email_content_repository,
             )
             job_repository: JobRepository = JobRepository(session)
             job_service: JobService = JobService(job_repository=job_repository)
@@ -424,20 +428,32 @@ async def _fetch_email_content(job_id: str, email_account_id: str) -> None:
                 if not emails_batch:
                     break
 
-                message_ids = [email.external_id for email in emails_batch]
-
+                external_id_to_email_id = {
+                    email.external_id: email.id for email in emails_batch
+                }
+                message_ids = list(external_id_to_email_id.keys())
                 # Fetch full message content for this batch
                 messages = await strategy.fetch_messages_by_ids(
-                    message_ids,
+                    message_ids=message_ids,
                     access_token=auth_data.access_token,
                     user_identifier=user_identifier,
                     format="full",
                 )
 
+                parsed_emails = []
                 for message in messages:
                     parsed_email: ParsedEmailContent = email_parser.parse(message)
+                    if not parsed_email:
+                        print(
+                            f"Unable to parse message id ({message['id']}) | {external_id_to_email_id[message['id']]}"
+                        )
+                        continue
+                    email_id = external_id_to_email_id[message["id"]]
+                    parsed_email.email_id = email_id
+                    parsed_emails.append(parsed_email)
 
                 # TODO: Parse MIME parts and persist EmailContent via EmailIngestionService.
+                email_ingestion_service.batch_upsert_email_content(data=parsed_emails)
                 processed += len(messages)
 
                 job_service.update_job(job_id, progress_current=processed)
