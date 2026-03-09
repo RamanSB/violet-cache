@@ -5,6 +5,7 @@ Gmail-specific parser implementation.
 import base64
 from typing import Any, Dict, Optional, Tuple
 
+from app.normalisers.email_normaliser import EmailNormaliser
 from app.parsers.email_content_parser import EmailContentParser
 from app.schema.schemas import ParsedEmailContent
 
@@ -19,6 +20,9 @@ class GmailContentParser(EmailContentParser):
     only retain data from the current message and not the entire text appended email chain.
     """
 
+    def __init__(self, normaliser: EmailNormaliser):
+        self.normaliser = normaliser
+
     def parse(self, message: Dict[str, Any]) -> ParsedEmailContent:
         try:
             payload = message.get("payload", {})
@@ -29,7 +33,9 @@ class GmailContentParser(EmailContentParser):
 
             # headers = self._headers_to_dict(payload.get("headers", []))
 
-            normalized_text = self._normalize_text(text_plain, text_html)
+            normalized_text = self.normaliser.normalise(
+                text_plain=text_plain, text_html=text_html
+            )
 
             return ParsedEmailContent(
                 container_mime_type=mime_type,
@@ -84,20 +90,3 @@ class GmailContentParser(EmailContentParser):
                 result[name] = value
 
         return result
-
-    def _normalize_text(
-        self, text_plain: Optional[str], text_html: Optional[str]
-    ) -> Optional[str]:
-        """
-        Produce embedding/search friendly text.
-        """
-        if text_plain and text_plain.strip():
-            return text_plain.strip()
-
-        if text_html:
-            from bs4 import BeautifulSoup
-
-            soup = BeautifulSoup(text_html, "html.parser")
-            return soup.get_text("\n", strip=True)
-
-        return None

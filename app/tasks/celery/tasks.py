@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import List
 
 from app.celery_db import celery_session
+from app.normalisers.email_normaliser import EmailNormaliser
 from app.parsers.parser_factory import EmailContentParserFactory
 from app.repositories.email_repository import EmailRepository
 from app.repositories.email_content_repository import EmailContentRepository
@@ -406,7 +407,9 @@ async def _fetch_email_content(job_id: str, email_account_id: str) -> None:
 
             # Provider-specific strategy (e.g., Gmail) for fetching full message content
             strategy = EmailProviderStrategyFactory.create(email_account.provider)
-            email_parser = EmailContentParserFactory.create(email_account.provider)
+            email_parser = EmailContentParserFactory.create(
+                provider=email_account.provider, normaliser=EmailNormaliser()
+            )
 
             # Total number of unique Email rows for this account
             total_messages = email_repository.get_email_count(
