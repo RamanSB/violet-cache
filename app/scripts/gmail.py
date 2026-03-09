@@ -1,17 +1,21 @@
 import asyncio
 import json
 import random
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
+import uuid
 
 
 import httpx
 from aiolimiter import AsyncLimiter
-from sqlmodel import Session, func, select
+from sqlalchemy import Result
+from sqlmodel import Session, col, func, select
 
 from app.client.gmail import GmailClient
 from app.db import engine
 from app.enums import HARDCODED_USER_ID
-from app.models.models import Email
+from app.models.models import Email, EmailContent
+from app.normalisers.email_normaliser import EmailNormaliser
+from app.parsers.gmail_content_parser import GmailContentParser
 from app.repositories.google_auth import GoogleAuthDataRepository
 from app.tasks.celery.tasks import expand_emails_per_thread, fetch_email_content
 
@@ -196,19 +200,42 @@ if __name__ == "__main__":
     #     email_account_id="898c907d-d5e8-4a11-81cd-2f6a4d1a0a30",
     # )
 
-    # fetch_email_content(
-    #     job_id="30e267d5-1957-46bc-9d83-5ea9439eeb5c",
-    #     email_account_id="898c907d-d5e8-4a11-81cd-2f6a4d1a0a30",
-    # )
+    fetch_email_content(
+        job_id="30e267d5-1957-46bc-9d83-5ea9439eeb5c",
+        email_account_id="898c907d-d5e8-4a11-81cd-2f6a4d1a0a30",
+    )
     EMAIL_IDS = [
-        "b5b78ca7-587d-459e-8622-fb2c92821bf3",
-        "07cf071e-e5fe-42f4-b0e0-678dde3215c8",
-        "9828fd56-b7c5-437b-9c6f-44094b7c0098",
-        "226a8f5d-6fda-44ac-8d6e-2318c8e1e872",
-        "4a8f7b2e-de9f-4dc1-85bf-c947535eb2f5",
-        "d6b5c74c-cf78-4ea0-b6f4-29daea1173f8",
-        "25e0f360-4982-429b-8add-07de0fc3984b",  # TODO: Handle Forwarded Email *
-        "d27bdae0-a2d7-4ccd-85aa-a152082d67e3",  # TODO: Amex security OTP
-        "e4e12dc8-5348-485e-a0b9-50a5291bcc4c",  # TODO: Company footer.
-        "484a77e4-63a3-4f97-a216-d7e8c81dd0e5",  # TODO: Savils Footer.
+        uuid.UUID("b5b78ca7-587d-459e-8622-fb2c92821bf3"),
+        uuid.UUID("07cf071e-e5fe-42f4-b0e0-678dde3215c8"),
+        uuid.UUID("9828fd56-b7c5-437b-9c6f-44094b7c0098"),
+        uuid.UUID("226a8f5d-6fda-44ac-8d6e-2318c8e1e872"),
+        uuid.UUID("4a8f7b2e-de9f-4dc1-85bf-c947535eb2f5"),
+        uuid.UUID("d6b5c74c-cf78-4ea0-b6f4-29daea1173f8"),
+        uuid.UUID(
+            "25e0f360-4982-429b-8add-07de0fc3984b"
+        ),  # TODO: Handle Forwarded Email )*
+        uuid.UUID("d27bdae0-a2d7-4ccd-85aa-a152082d67e3"),  # TODO: Amex security OT)P
+        uuid.UUID("e4e12dc8-5348-485e-a0b9-50a5291bcc4c"),  # TODO: Company footer).
+        uuid.UUID("484a77e4-63a3-4f97-a216-d7e8c81dd0e5"),  # TODO: Savils Footer).
     ]
+
+    with Session(engine) as session:
+
+        stmt = (
+            select(Email, EmailContent)
+            .join(EmailContent, Email.id == EmailContent.email_id)
+            .where(col(EmailContent.email_id).in_(EMAIL_IDS))
+        )
+        res: Result = session.exec(stmt)
+        rows: List[Tuple[Email, EmailContent]] = res.all()
+
+        content_parser = GmailContentParser(normaliser=EmailNormaliser())
+
+        for e, ec in rows:
+            print(f"Processing: {ec.email_id}... From {e.sender}")
+            print(f"\n\n==========================================")
+            print(
+                f"Plain Text: {bool(ec.text_plain)} | Plain HTML: {bool(ec.text_html)}"
+            )
+            print(f"Normalised Text: \n{ec.normalized_text}")
+            print(f"\n\n==========================================")
