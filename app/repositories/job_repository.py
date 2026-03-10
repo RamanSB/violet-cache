@@ -22,8 +22,8 @@ class JobRepository:
 
         Args:
             resource_id: ID of the resource (e.g., email_account_id)
-            resource_type: Type of resource (e.g., ResourceType.email_account)
-            job_type: Type of job (e.g., JobType.mailbox_sync)
+            resource_type: Type of resource (e.g., ResourceType.EMAIL_ACCOUNT)
+            job_type: Type of job (e.g., JobType.MAILBOX_SYNC)
             statuses: Optional list of statuses to filter by. If None, returns any job regardless of status.
 
         Returns:

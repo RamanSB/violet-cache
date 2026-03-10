@@ -24,9 +24,9 @@ class JobService:
         """
         job = self.job_repo.find_job_by_resource(
             resource_id=email_account_id,
-            resource_type=ResourceType.email_account,
-            job_type=JobType.mailbox_sync,
-            statuses=[JobStatus.queued, JobStatus.running],
+            resource_type=ResourceType.EMAIL_ACCOUNT,
+            job_type=JobType.MAILBOX_SYNC,
+            statuses=[JobStatus.QUEUED, JobStatus.RUNNING],
         )
         return job is not None
 
@@ -37,7 +37,7 @@ class JobService:
             resource_id=resource_id,
             resource_type=resource_type,
             job_type=job_type,
-            statuses=[JobStatus.queued, JobStatus.running],
+            statuses=[JobStatus.QUEUED, JobStatus.RUNNING],
         )
 
         if not workflow_job:
@@ -48,7 +48,7 @@ class JobService:
                 resource_id=resource_id,
                 resource_type=resource_type,
                 job_type=job_type,
-                job_status=JobStatus.queued,
+                job_status=JobStatus.QUEUED,
             )
             return workflow_job, True
 

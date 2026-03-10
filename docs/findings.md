@@ -9,3 +9,4 @@ Forwarded Emails aren't being parsed correctly (need to find out how to identify
 3) Evaluate parser performance & run normaliser on emails to evaluate performance.
 
 TODO: Ensure normaliser uses regional block score instead of individual, due to block identification not being robust.
+TODO: Store emails that are dropped with appropriate reason (perhaps not occupies to much storage)

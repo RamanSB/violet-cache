@@ -67,7 +67,7 @@ async def _sync_email_metadata_orchestrator(
             job_service: JobService = JobService(job_repository=job_repository)
             job_service.update_job(
                 job_id=job_id,
-                status=JobStatus.running,
+                status=JobStatus.RUNNING,
                 phase=JobPhase.METADATA_DISCOVERY,
             )
             # Load email account
@@ -175,7 +175,7 @@ async def _sync_email_metadata_orchestrator(
 
             job_service.update_job(
                 job_id,
-                status=JobStatus.succeeded,
+                status=JobStatus.SUCCEEDED,
                 completed_at=datetime.now(timezone.utc),
                 progress_total=total,
             )
@@ -189,7 +189,7 @@ async def _sync_email_metadata_orchestrator(
             job_repo = JobRepository(session=session)
             job_service = JobService(job_repo)
             job_service.update_job(
-                job_id=job_id, status=JobStatus.failed, error_message=str(e)
+                job_id=job_id, status=JobStatus.FAILED, error_message=str(e)
             )
         return {"status": "error", "message": str(e)}
     finally:
@@ -218,7 +218,7 @@ async def _expand_emails_per_thread(*, job_id: str, email_account_id: str):
             # Mark job as running in THREAD_EXPANSION phase
             job_service.update_job(
                 job_id=job_id,
-                status=JobStatus.running,
+                status=JobStatus.RUNNING,
                 phase=JobPhase.THREAD_EXPANSION,
             )
 
@@ -310,7 +310,7 @@ async def _expand_emails_per_thread(*, job_id: str, email_account_id: str):
 
             job_service.update_job(
                 job_id,
-                status=JobStatus.succeeded,
+                status=JobStatus.SUCCEEDED,
                 completed_at=datetime.now(timezone.utc),
                 progress_total=total_messages,
             )
@@ -325,7 +325,7 @@ async def _expand_emails_per_thread(*, job_id: str, email_account_id: str):
             job_repo = JobRepository(session=session)
             job_service = JobService(job_repo)
             job_service.update_job(
-                job_id=job_id, status=JobStatus.failed, error_message=str(ex)
+                job_id=job_id, status=JobStatus.FAILED, error_message=str(ex)
             )
         return {"status": "error", "message": str(ex)}
 
@@ -365,7 +365,7 @@ async def _fetch_email_content(job_id: str, email_account_id: str) -> None:
             # Mark job as running in CONTENT_FETCH phase
             job_service.update_job(
                 job_id=job_id,
-                status=JobStatus.running,
+                status=JobStatus.RUNNING,
                 phase=JobPhase.CONTENT_FETCH,
             )
 
@@ -465,7 +465,7 @@ async def _fetch_email_content(job_id: str, email_account_id: str) -> None:
 
             job_service.update_job(
                 job_id=job_id,
-                status=JobStatus.succeeded,
+                status=JobStatus.SUCCEEDED,
                 completed_at=datetime.now(timezone.utc),
                 progress_total=processed,
             )
@@ -480,7 +480,7 @@ async def _fetch_email_content(job_id: str, email_account_id: str) -> None:
             job_repo = JobRepository(session=session)
             job_service = JobService(job_repo)
             job_service.update_job(
-                job_id=job_id, status=JobStatus.failed, error_message=str(ex)
+                job_id=job_id, status=JobStatus.FAILED, error_message=str(ex)
             )
         return {"status": "error", "message": str(ex)}
 

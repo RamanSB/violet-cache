@@ -3,13 +3,18 @@
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
+from celery import chain
 from celery.result import AsyncResult
 from app.repositories.email_account import EmailAccountRepository
 from app.repositories.user import UserRepository
 from app.repositories.google_auth import GoogleAuthDataRepository
 from app.models.models import EmailAccount, GoogleAuthData
 from app.enums import EmailProvider
-from app.tasks.celery.tasks import sync_email_metadata_orchestrator
+from app.tasks.celery.tasks import (
+    expand_emails_per_thread,
+    fetch_email_content,
+    sync_email_metadata_orchestrator,
+)
 
 
 class EmailAccountService:
@@ -162,18 +167,19 @@ class EmailAccountService:
         #         f"sync_{email_account_id}_{int(datetime.now(timezone.utc).timestamp())}"
         #     )
 
-        # Submit Celery task
-        task = sync_email_metadata_orchestrator.apply_async(
-            kwargs={
-                "job_id": job_id,
-                "email_account_id": str(email_account_id),
-                "idempotency_key": idempotency_key,
-            },
-            task_id=job_id,
+        # Submit Celery task chain
+        job_id, email_account_id = str(job_id), str(email_account_id)
+        task_chain = chain(
+            sync_email_metadata_orchestrator.si(
+                job_id, email_account_id, idempotency_key
+            )
+            | expand_emails_per_thread.si(job_id, email_account_id)
+            | fetch_email_content.si(job_id, email_account_id)
         )
-
+        res = task_chain()
+        print(res)
         return {
-            "task_id": task.id,
+            "job_id": job_id,
             "status": "pending",
             "idempotency_key": idempotency_key,
             "email_account_id": str(email_account_id),

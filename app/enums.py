@@ -3,33 +3,33 @@ import uuid
 
 
 class EmailProvider(str, Enum):
-    GMAIL = "gmail"
-    OUTLOOK = "outlook"
+    GMAIL = "GMAIL"
+    OUTLOOK = "OUTLOOK"
 
 
 class JobStatus(str, Enum):
-    queued = "queued"
-    running = "running"
-    succeeded = "succeeded"
-    failed = "failed"
+    QUEUED = "QUEUED"
+    RUNNING = "RUNNING"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
 
 
 class JobType(str, Enum):
-    mailbox_sync = "mailbox_sync"
+    MAILBOX_SYNC = "MAILBOX_SYNC"
 
 
 class JobPhase(str, Enum):
-    METADATA_DISCOVERY = "metadata_discovery"
-    THREAD_EXPANSION = "thread_expansion"
-    CONTENT_FETCH = "content_fetch"
-    EMBEDDING = "embedding"
-    COMPLETE = "complete"
+    METADATA_DISCOVERY = "METADATA_DISCOVERY"
+    THREAD_EXPANSION = "THREAD_EXPANSION"
+    CONTENT_FETCH = "CONTENT_FETCH"
+    EMBEDDING = "EMBEDDING"
+    COMPLETE = "COMPLETE"
 
 
 class ResourceType(str, Enum):
-    email_account = "email_account"
-    casefile = "casefile"
-    document = "document"
+    EMAIL_ACCOUNT = "EMAIL_ACCOUNT"
+    CASEFILE = "CASEFILE"
+    DOCUMENT = "DOCUMENT"
 
 
 # TODO: Read in from JWT
