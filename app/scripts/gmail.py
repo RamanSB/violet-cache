@@ -69,21 +69,21 @@ async def fetch_message_content(
 ) -> Dict[str, Any]:
     # Pull less data if you don’t need full payload:
     # format=metadata is usually enough, adjust as needed.
-    url = f"{BASE_URL}/users/{user_id}/messages/{msg_id}?format=metadata"
+    url = f"{BASE_URL}/users/{user_id}/messages/{msg_id}?format=full"
     r = await get_with_backoff(client, url)
     return r.json()
 
 
-async def fetch_message_content(
-    client: httpx.AsyncClient,
-    user_id: str,
-    msg_id: str,
-) -> Dict[str, Any]:
-    # Pull less data if you don’t need full payload:
-    # format=metadata is usually enough, adjust as needed.
-    url = f"{BASE_URL}/users/{user_id}/threads/{msg_id}?format=metadata"
-    r = await get_with_backoff(client, url)
-    return r.json()
+# async def fetch_message_content(
+#     client: httpx.AsyncClient,
+#     user_id: str,
+#     thread_id: str,
+# ) -> Dict[str, Any]:
+#     # Pull less data if you don’t need full payload:
+#     # format=metadata is usually enough, adjust as needed.
+#     url = f"{BASE_URL}/users/{user_id}/threads/{thread_id}?format=metadata"
+#     r = await get_with_backoff(client, url)
+#     return r.json()
 
 
 async def fetch_messages_by_ids(
@@ -233,9 +233,21 @@ if __name__ == "__main__":
 
         for e, ec in rows:
             print(f"Processing: {ec.email_id}... From {e.sender}")
-            print(f"\n\n==========================================")
-            print(
-                f"Plain Text: {bool(ec.text_plain)} | Plain HTML: {bool(ec.text_html)}"
+            normalized_text = content_parser.normaliser.normalise(
+                text_plain=ec.text_plain, text_html=ec.text_html
             )
-            print(f"Normalised Text: \n{ec.normalized_text}")
+            print(f"Normalised Text: \n{normalized_text}")
             print(f"\n\n==========================================")
+
+    # MSG_ID = "195b366fe6f6c97f"
+    # message_content = asyncio.run(fetch_messages_by_ids(message_ids=[MSG_ID]))
+    # FILE_PATH: str = (
+    #     "/Users/raman/Documents/Development/Projects/notes-lab/app/data/json"
+    # )
+    # with open(f"{FILE_PATH}/{MSG_ID}.json", "w") as file:
+    #     json.dump(message_content, file)
+
+    # parsed_email_content = GmailContentParser(normaliser=EmailNormaliser()).parse(
+    #     message=message_content[0]
+    # )
+    # print(parsed_email_content)
