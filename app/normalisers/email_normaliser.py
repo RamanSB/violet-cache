@@ -189,7 +189,7 @@ class EmailNormaliser:
 
         return text.strip()
 
-    # TODO: Revisit this logic
+    # TODO: Revisit this logic (include regional scoring - consider neighboring blocks).
     def _strip_footer_boilerplate(self, text: str) -> str:
         blocks = self._split_blocks(text)
         if not blocks:
