@@ -20,7 +20,7 @@ def _convert_gmail_msg_to_email(gmail_message) -> Email:
     header_map = {}
     for obj in payload_headers:
         name = obj.get("name")
-        if name in ["From", "from", "To", "Subject", "Date"]:
+        if name in ["From", "from", "To", "Subject", "Date", "Cc"]:
             header_map[name] = obj.get("value")
 
     sender = header_map.get("From") or header_map.get(
@@ -28,6 +28,7 @@ def _convert_gmail_msg_to_email(gmail_message) -> Email:
     )  # Gmail ~uses lowercase (see error_item-1.json)
     receiver = header_map.get("To")
     subject = header_map.get("Subject")
+    cc = header_map.get("Cc")
     date_received = parsedate_to_datetime(header_map.get("Date"))
 
     # Basic mapping; fill in None/defaults for required Email fields not available
@@ -40,7 +41,7 @@ def _convert_gmail_msg_to_email(gmail_message) -> Email:
         snippet=snippet,
         sender=sender,
         receiver=receiver,
-        cc=None,
+        cc=cc,
         subject=subject,
         date_received=date_received,
         size=size,
