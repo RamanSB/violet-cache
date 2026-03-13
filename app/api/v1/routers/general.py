@@ -9,7 +9,7 @@ from app.dependencies import (
     JobServiceDep,
     UserServiceDep,
 )
-from app.enums import JobType, ResourceType, HARDCODED_USER_ID
+from app.enums import JobStatus, JobType, ResourceType, HARDCODED_USER_ID
 from app.models.models import EmailAccount, WorkflowJob
 from app.repositories.email_account import EmailAccountRepository
 
@@ -91,13 +91,12 @@ def sync_email_account(
         email_account_uuid = uuid.UUID(email_account_id)
 
         active_job, created = job_service.get_or_create_active_job(
-            resource_type=ResourceType.email_account,
+            resource_type=ResourceType.EMAIL_ACCOUNT,
             resource_id=email_account_id,
-            job_type=JobType.mailbox_sync,
+            job_type=JobType.MAILBOX_SYNC,
         )
-
         # Start sync job (this will check credentials internally) if job not already created.
-        if created:
+        if created or active_job.status == JobStatus.QUEUED:
             job_status = email_account_service.start_email_account_sync(
                 active_job.id,
                 email_account_id=email_account_uuid,

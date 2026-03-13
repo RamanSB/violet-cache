@@ -1,7 +1,11 @@
 Some emails have HTML data under the mime type text/plain.
+<<<<<<< HEAD
 
 Forwarded Emails aren't being parsed correctly (need to find out how to identify these - TREATMENT)
     - For now just treat forwarded messages as the first-level message if none exist, ignore it.
+=======
+Forwarded Emails aren't being parsed correctly (need to find out how to identify these)
+>>>>>>> main
 
 
 

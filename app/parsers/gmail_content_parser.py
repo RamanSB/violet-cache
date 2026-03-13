@@ -62,7 +62,26 @@ class GmailContentParser(EmailContentParser):
             data = body.get("data")
 
             if mime_type == "text/plain" and data and text_plain is None:
-                text_plain = self._decode_base64url(data)
+                decoded = self._decode_base64url(data)
+                from bs4 import BeautifulSoup
+
+                soup = BeautifulSoup(decoded, "html.parser")
+                # Heuristic: classify as HTML only if substantial part is HTML (not just presence of any tag)
+                tag_count = len(soup.find_all())
+                content_length = len(decoded.strip())
+                tag_density = tag_count / content_length if content_length else 0
+                contains_html_tag = any(
+                    tag in decoded.lower()
+                    for tag in ("<html", "<body", "<head", "<table", "<div")
+                )
+
+                # Criteria:
+                # - Large tag density or HTML doc structure tags, and also not just a <br> or <a>
+                if (tag_density > 0.01 and tag_count > 5) or contains_html_tag:
+                    if text_html is None:
+                        text_html = decoded
+                else:
+                    text_plain = decoded
 
             elif mime_type == "text/html" and data and text_html is None:
                 text_html = self._decode_base64url(data)

@@ -69,21 +69,21 @@ async def fetch_message_content(
 ) -> Dict[str, Any]:
     # Pull less data if you don’t need full payload:
     # format=metadata is usually enough, adjust as needed.
-    url = f"{BASE_URL}/users/{user_id}/messages/{msg_id}?format=metadata"
+    url = f"{BASE_URL}/users/{user_id}/messages/{msg_id}?format=full"
     r = await get_with_backoff(client, url)
     return r.json()
 
 
-async def fetch_message_content(
-    client: httpx.AsyncClient,
-    user_id: str,
-    msg_id: str,
-) -> Dict[str, Any]:
-    # Pull less data if you don’t need full payload:
-    # format=metadata is usually enough, adjust as needed.
-    url = f"{BASE_URL}/users/{user_id}/threads/{msg_id}?format=metadata"
-    r = await get_with_backoff(client, url)
-    return r.json()
+# async def fetch_message_content(
+#     client: httpx.AsyncClient,
+#     user_id: str,
+#     thread_id: str,
+# ) -> Dict[str, Any]:
+#     # Pull less data if you don’t need full payload:
+#     # format=metadata is usually enough, adjust as needed.
+#     url = f"{BASE_URL}/users/{user_id}/threads/{thread_id}?format=metadata"
+#     r = await get_with_backoff(client, url)
+#     return r.json()
 
 
 async def fetch_messages_by_ids(
@@ -200,20 +200,20 @@ if __name__ == "__main__":
     #     email_account_id="898c907d-d5e8-4a11-81cd-2f6a4d1a0a30",
     # )
 
-    fetch_email_content(
-        job_id="30e267d5-1957-46bc-9d83-5ea9439eeb5c",
-        email_account_id="898c907d-d5e8-4a11-81cd-2f6a4d1a0a30",
-    )
+    # fetch_email_content(
+    #     job_id="30e267d5-1957-46bc-9d83-5ea9439eeb5c",
+    #     email_account_id="898c907d-d5e8-4a11-81cd-2f6a4d1a0a30",
+    # )
     EMAIL_IDS = [
-        uuid.UUID("b5b78ca7-587d-459e-8622-fb2c92821bf3"),
-        uuid.UUID("07cf071e-e5fe-42f4-b0e0-678dde3215c8"),
-        uuid.UUID("9828fd56-b7c5-437b-9c6f-44094b7c0098"),
-        uuid.UUID("226a8f5d-6fda-44ac-8d6e-2318c8e1e872"),
-        uuid.UUID("4a8f7b2e-de9f-4dc1-85bf-c947535eb2f5"),
-        uuid.UUID("d6b5c74c-cf78-4ea0-b6f4-29daea1173f8"),
-        uuid.UUID(
-            "25e0f360-4982-429b-8add-07de0fc3984b"
-        ),  # TODO: Handle Forwarded Email )*
+        # uuid.UUID("b5b78ca7-587d-459e-8622-fb2c92821bf3"),
+        # uuid.UUID("07cf071e-e5fe-42f4-b0e0-678dde3215c8"),
+        # uuid.UUID("9828fd56-b7c5-437b-9c6f-44094b7c0098"),
+        # uuid.UUID("226a8f5d-6fda-44ac-8d6e-2318c8e1e872"),
+        # uuid.UUID("4a8f7b2e-de9f-4dc1-85bf-c947535eb2f5"),
+        # uuid.UUID("d6b5c74c-cf78-4ea0-b6f4-29daea1173f8"),
+        # uuid.UUID(
+        #     "25e0f360-4982-429b-8add-07de0fc3984b"
+        # ),  # TODO: Handle Forwarded Email )*
         uuid.UUID("d27bdae0-a2d7-4ccd-85aa-a152082d67e3"),  # TODO: Amex security OT)P
         uuid.UUID("e4e12dc8-5348-485e-a0b9-50a5291bcc4c"),  # TODO: Company footer).
         uuid.UUID("484a77e4-63a3-4f97-a216-d7e8c81dd0e5"),  # TODO: Savils Footer).
@@ -233,9 +233,22 @@ if __name__ == "__main__":
 
         for e, ec in rows:
             print(f"Processing: {ec.email_id}... From {e.sender}")
-            print(f"\n\n==========================================")
-            print(
-                f"Plain Text: {bool(ec.text_plain)} | Plain HTML: {bool(ec.text_html)}"
+            normalized_text = content_parser.normaliser.normalise(
+                text_plain=ec.text_plain, text_html=ec.text_html
             )
-            print(f"Normalised Text: \n{ec.normalized_text}")
+            print(f"Normalised Text: \n{normalized_text}")
             print(f"\n\n==========================================")
+
+    # ==============================
+    # MSG_ID = "195b366fe6f6c97f"
+    # message_content = asyncio.run(fetch_messages_by_ids(message_ids=[MSG_ID]))
+    # FILE_PATH: str = (
+    #     "/Users/raman/Documents/Development/Projects/notes-lab/app/data/json"
+    # )
+    # with open(f"{FILE_PATH}/{MSG_ID}.json", "w") as file:
+    #     json.dump(message_content, file)
+
+    # parsed_email_content = GmailContentParser(normaliser=EmailNormaliser()).parse(
+    #     message=message_content[0]
+    # )
+    # print(parsed_email_content)
