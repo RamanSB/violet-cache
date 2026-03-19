@@ -22,9 +22,17 @@ class ChunkPreparationService:
         # self._email_content_repo = email_content_repository
         self._chunkifier = chunkifier
 
-    def prepare_chunks_for_email_account(self, email: str):
+    def prepare_chunks_for_email_account(
+        self, email: str, filter_thread_ids: List[str] | None = None
+    ) -> Dict[str, List[PreparedEmailChunk]]:
         """
-        Placeholder method to prepare chunks for all emails belonging to a specific email account.
+        Prepare chunks for embedding service for a given email account.
+
+        Args:
+            filter_thread_ids: Used to filter thread ids we shall chunk emails for (used for testing)
+
+        Returns:
+            Dict of List of prepared chunks keyed by thread id.
         """
         email_account: EmailAccount = self._email_account_repo.find_by_email(
             email=email
@@ -32,6 +40,7 @@ class ChunkPreparationService:
         distinct_thread_count: int = self._email_repo.get_distinct_thread_count(
             email_account_id=email_account.id
         )
+        filter_thread_ids_set = set(filter_thread_ids or [])
 
         # Stream thread ids in batches to avoid loading all into memory
         offset = 0
@@ -50,6 +59,8 @@ class ChunkPreparationService:
                 break
 
             for thread_id in distinct_thread_ids:
+                if filter_thread_ids_set and thread_id not in filter_thread_ids_set:
+                    continue
                 thread_chunks = self.prepare_chunks_for_thread(
                     thread_id=thread_id, user_id=email_account.user_id
                 )
@@ -60,9 +71,11 @@ class ChunkPreparationService:
             offset += processed_count
         return chunks_by_thread_id
 
-    def prepare_chunks_for_thread(self, *, thread_id: str, user_id: uuid.UUID):
+    def prepare_chunks_for_thread(
+        self, *, thread_id: str, user_id: uuid.UUID
+    ) -> List[PreparedEmailChunk]:
         email_with_content: List[Tuple[Email, EmailContent]] = (
-            self._email_repo.get_email_by_thread_id(
+            self._email_repo.get_emails_by_thread_id(
                 thread_id=thread_id,
                 user_id=user_id,
             )
@@ -71,6 +84,10 @@ class ChunkPreparationService:
 
         all_chunks = []
         for idx, (email, content) in enumerate(email_with_content):
+            if not content.normalized_text:
+                print(
+                    f"skip {email.id} for thread {email.thread_id} - no content from {email.sender} | subject: {email.subject} "
+                )
             email_chunks = self.prepare_chunks_for_email(
                 email=email,
                 content=content.normalized_text,
@@ -111,7 +128,7 @@ class ChunkPreparationService:
                 chunking_version=self._chunkifier.strategy_version,
                 normalizer_version="v1",
                 metadata={
-                    "user_id": email.user_id,
+                    "user_id": str(email.user_id),
                 },
             )
             prepared_chunks.append(prepared_chunk)

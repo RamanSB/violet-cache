@@ -95,7 +95,7 @@ class EmailRepository:
         # results is a list of scalar thread_id values
         return list(results)
 
-    def get_email_by_thread_id(
+    def get_emails_by_thread_id(
         self, *, thread_id: str, user_id: uuid.UUID, sort_asc=True
     ) -> List[Tuple[Email, EmailContent]]:
         stmt = (
