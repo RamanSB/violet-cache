@@ -96,7 +96,7 @@ class EmailRepository:
         return list(results)
 
     def get_email_by_thread_id(
-        self, *, thread_id: str, user_id: uuid.UUID
+        self, *, thread_id: str, user_id: uuid.UUID, sort_asc=True
     ) -> List[Tuple[Email, EmailContent]]:
         stmt = (
             # Later decide what fields are relevant to select.
@@ -104,5 +104,7 @@ class EmailRepository:
             .join(EmailContent, Email.id == EmailContent.email_id)
             .where(Email.thread_id == thread_id, Email.user_id == user_id)
         )
+        if sort_asc:
+            stmt = stmt.order_by(Email.date_received)
         results = self.session.exec(stmt).all()
         return list(results)

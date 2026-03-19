@@ -4,6 +4,7 @@ from app.models.models import Email, EmailAccount, EmailContent
 from app.repositories.email_account import EmailAccountRepository
 from app.repositories.email_content_repository import EmailContentRepository
 from app.repositories.email_repository import EmailRepository
+from app.schema.dto.prepared_email_chunk import PreparedEmailChunk
 
 
 class ChunkPreparationService:
@@ -13,6 +14,7 @@ class ChunkPreparationService:
         email_account_repository: EmailAccountRepository,
         email_repository: EmailRepository,
         email_content_repository: EmailContentRepository,
+        # chunkifier: TODO: Create Chunkifier ABC and implement a particular ChunkStrategyClass
     ):
         self._email_account_repo = email_account_repository
         self._email_repo = email_repository
@@ -57,12 +59,28 @@ class ChunkPreparationService:
     def prepare_chunks_for_thread(self, *, thread_id: str, user_id: uuid.UUID):
         email_with_content: List[Tuple[Email, EmailContent]] = (
             self._email_repo.get_email_by_thread_id(
-                thread_id=thread_id, user_id=user_id
+                thread_id=thread_id,
+                user_id=user_id,
             )
         )
+        msg_count = len(email_with_content)
+        all_chunks = []
+        for idx, (email, content) in enumerate[Tuple[Email, EmailContent]](
+            email_with_content
+        ):
+            email_chunks = self.prepare_chunks_for_email(
+                email=email,
+                content=content.normalized_text,
+                message_index=idx,
+                message_count=msg_count,
+            )
+            all_chunks.extend(email_chunks)
 
-    def prepare_chunks_for_email(self, email_id):
+    def prepare_chunks_for_email(
+        self, *, email, content, message_idx, message_count
+    ) -> List[PreparedEmailChunk]:
         """
         Placeholder method to prepare chunks for a single email.
         """
         pass
+        # TODO: Create PreparedEmailChunk

@@ -112,3 +112,52 @@ When a user asks a query we embed the query and perform a dot product on the chu
 # 6. Architecture
 
 ![Casefile Architecture](docs/architecture.png)
+
+
+# Notes
+
+Create 2 Services:
+1. EmailEmbeddingPrepService
+2. EmbeddingService
+
+
+```python
+@dataclass
+class PreparedEmailChunk:
+    # identity
+    email_id: UUID
+    thread_id: str
+
+    # thread-aware metadata
+    message_index: int
+    message_count_in_thread: int
+
+    # chunk metadata
+    chunk_index: int
+    chunk_count_for_message: int
+
+    # message metadata
+    subject: str | None
+    sender: str | None
+    sent_at: datetime | None
+
+    # chunk payload
+    chunk_text: str
+    embedding_text: str
+    char_count: int
+
+    # pipeline metadata
+    chunking_strategy: str
+    chunking_version: str
+    normalizer_version: str
+
+    # flexible extras
+    metadata: dict
+
+```
+EmailChunkPrepService creates the above PreparedEmailChunks by doing the following:
+- For a given email_account_id, we load all distinct thread_ids. 
+- Then fetch the individual messages per thread and sort in chronological order and attach metadata.
+- We then go through the message (normalized_text) content and chunkify using a chunker to create chunks and include the metadata.
+
+EmailChunkPrepService should leverage a Chunkifier that has a strategy and we implement ~chunk_size in tokens and uses a tokenizer and also another class for structuring emails
