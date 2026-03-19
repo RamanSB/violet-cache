@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     )
 
 
-settings = Settings()
+settings = Settings()  # TODO: Delete
 
 
 @lru_cache

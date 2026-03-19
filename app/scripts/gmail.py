@@ -12,11 +12,16 @@ from sqlmodel import Session, col, func, select
 
 from app.client.gmail import GmailClient
 from app.db import engine
+from app.dependencies import get_chunk_preparation_service
 from app.enums import HARDCODED_USER_ID
 from app.models.models import Email, EmailContent
 from app.normalisers.email_normaliser import EmailNormaliser
 from app.parsers.gmail_content_parser import GmailContentParser
+from app.repositories.email_account import EmailAccountRepository
+from app.repositories.email_content_repository import EmailContentRepository
+from app.repositories.email_repository import EmailRepository
 from app.repositories.google_auth import GoogleAuthDataRepository
+from app.services import chunk_preparation_service
 from app.tasks.celery.tasks import expand_emails_per_thread, fetch_email_content
 
 BASE_URL = "https://gmail.googleapis.com/gmail/v1"
@@ -179,6 +184,20 @@ async def test_fetch_messages_by_thread():
             await gmail_client.close()
 
 
+async def test_chunking_preparation_service():
+    with Session(engine) as session:
+        email_account_repo = EmailAccountRepository(session)
+        email_repo = EmailRepository(session)
+        email_content_repo = EmailContentRepository(session)
+        chunk_prep_service = get_chunk_preparation_service(
+            email_account_repo, email_repo, email_content_repo
+        )
+
+        chunk_prep_service.prepare_chunks_for_email_account(
+            email="ramansb100@gmail.com"
+        )
+
+
 if __name__ == "__main__":
     # import pathlib
 
@@ -204,40 +223,40 @@ if __name__ == "__main__":
     #     job_id="30e267d5-1957-46bc-9d83-5ea9439eeb5c",
     #     email_account_id="898c907d-d5e8-4a11-81cd-2f6a4d1a0a30",
     # )
-    EMAIL_IDS = [
-        # uuid.UUID("b5b78ca7-587d-459e-8622-fb2c92821bf3"),
-        # uuid.UUID("07cf071e-e5fe-42f4-b0e0-678dde3215c8"),
-        # uuid.UUID("9828fd56-b7c5-437b-9c6f-44094b7c0098"),
-        # uuid.UUID("226a8f5d-6fda-44ac-8d6e-2318c8e1e872"),
-        # uuid.UUID("4a8f7b2e-de9f-4dc1-85bf-c947535eb2f5"),
-        # uuid.UUID("d6b5c74c-cf78-4ea0-b6f4-29daea1173f8"),
-        # uuid.UUID(
-        #     "25e0f360-4982-429b-8add-07de0fc3984b"
-        # ),  # TODO: Handle Forwarded Email )*
-        uuid.UUID("d27bdae0-a2d7-4ccd-85aa-a152082d67e3"),  # TODO: Amex security OT)P
-        uuid.UUID("e4e12dc8-5348-485e-a0b9-50a5291bcc4c"),  # TODO: Company footer).
-        uuid.UUID("484a77e4-63a3-4f97-a216-d7e8c81dd0e5"),  # TODO: Savils Footer).
-    ]
+    # EMAIL_IDS = [
+    #     # uuid.UUID("b5b78ca7-587d-459e-8622-fb2c92821bf3"),
+    #     # uuid.UUID("07cf071e-e5fe-42f4-b0e0-678dde3215c8"),
+    #     # uuid.UUID("9828fd56-b7c5-437b-9c6f-44094b7c0098"),
+    #     # uuid.UUID("226a8f5d-6fda-44ac-8d6e-2318c8e1e872"),
+    #     # uuid.UUID("4a8f7b2e-de9f-4dc1-85bf-c947535eb2f5"),
+    #     # uuid.UUID("d6b5c74c-cf78-4ea0-b6f4-29daea1173f8"),
+    #     # uuid.UUID(
+    #     #     "25e0f360-4982-429b-8add-07de0fc3984b"
+    #     # ),  # TODO: Handle Forwarded Email )*
+    #     uuid.UUID("d27bdae0-a2d7-4ccd-85aa-a152082d67e3"),  # TODO: Amex security OT)P
+    #     uuid.UUID("e4e12dc8-5348-485e-a0b9-50a5291bcc4c"),  # TODO: Company footer).
+    #     uuid.UUID("484a77e4-63a3-4f97-a216-d7e8c81dd0e5"),  # TODO: Savils Footer).
+    # ]
 
-    with Session(engine) as session:
+    # with Session(engine) as session:
 
-        stmt = (
-            select(Email, EmailContent)
-            .join(EmailContent, Email.id == EmailContent.email_id)
-            .where(col(EmailContent.email_id).in_(EMAIL_IDS))
-        )
-        res: Result = session.exec(stmt)
-        rows: List[Tuple[Email, EmailContent]] = res.all()
+    #     stmt = (
+    #         select(Email, EmailContent)
+    #         .join(EmailContent, Email.id == EmailContent.email_id)
+    #         .where(col(EmailContent.email_id).in_(EMAIL_IDS))
+    #     )
+    #     res: Result = session.exec(stmt)
+    #     rows: List[Tuple[Email, EmailContent]] = res.all()
 
-        content_parser = GmailContentParser(normaliser=EmailNormaliser())
+    #     content_parser = GmailContentParser(normaliser=EmailNormaliser())
 
-        for e, ec in rows:
-            print(f"Processing: {ec.email_id}... From {e.sender}")
-            normalized_text = content_parser.normaliser.normalise(
-                text_plain=ec.text_plain, text_html=ec.text_html
-            )
-            print(f"Normalised Text: \n{normalized_text}")
-            print(f"\n\n==========================================")
+    #     for e, ec in rows:
+    #         print(f"Processing: {ec.email_id}... From {e.sender}")
+    #         normalized_text = content_parser.normaliser.normalise(
+    #             text_plain=ec.text_plain, text_html=ec.text_html
+    #         )
+    #         print(f"Normalised Text: \n{normalized_text}")
+    #         print(f"\n\n==========================================")
 
     # ==============================
     # MSG_ID = "195b366fe6f6c97f"
@@ -252,3 +271,6 @@ if __name__ == "__main__":
     #     message=message_content[0]
     # )
     # print(parsed_email_content)
+
+    # Test email chunk prepare
+    asyncio.run(test_chunking_preparation_service())

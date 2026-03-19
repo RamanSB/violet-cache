@@ -7,6 +7,7 @@ from app.repositories.job_repository import JobRepository
 from app.repositories.user import UserRepository
 from app.repositories.google_auth import GoogleAuthDataRepository
 from app.repositories.email_account import EmailAccountRepository
+from app.services.chunk_preparation_service import ChunkPreparationService
 from app.services.email_ingestion.email_ingestion import EmailIngestionService
 from app.services.google_oauth_service import GoogleOAuthService
 from app.services.job_service import JobService
@@ -52,6 +53,22 @@ def get_job_service(
     job_repo: Annotated[JobRepository, Depends(get_job_repository)],
 ) -> JobService:
     return JobService(job_repo)
+
+
+def get_chunk_preparation_service(
+    email_account_repo: Annotated[
+        EmailRepository, Depends(get_email_account_repository)
+    ],
+    email_repo: Annotated[EmailRepository, Depends(get_email_repository)],
+    email_content_repo: Annotated[
+        EmailContentRepository, Depends(get_email_content_repository)
+    ],
+):
+    return ChunkPreparationService(
+        email_account_repository=email_account_repo,
+        email_repository=email_repo,
+        email_content_repository=email_content_repo,
+    )
 
 
 def get_email_ingestion_service(
