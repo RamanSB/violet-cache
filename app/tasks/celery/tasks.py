@@ -1,14 +1,19 @@
 import asyncio
+import chunk
 import uuid
 from datetime import datetime, timezone
 from typing import List
 
 from app.celery_db import celery_session
+from app.dependencies import get_chunk_preparation_service, get_chunkifier
 from app.normalisers.email_normaliser import EmailNormaliser
 from app.parsers.parser_factory import EmailContentParserFactory
 from app.repositories.email_repository import EmailRepository
 from app.repositories.email_content_repository import EmailContentRepository
 from app.schema.schemas import ParsedEmailContent
+from app.services import chunk_preparation_service
+from app.services import job_service
+from app.services.chunk_preparation_service import ChunkPreparationService
 from app.services.email_ingestion import email_ingestion
 from app.services.email_ingestion.email_ingestion import EmailIngestionService
 from app.services.email_ingestion.filters.rules import should_keep_email_metadata
@@ -18,6 +23,7 @@ from app.repositories.email_account import EmailAccountRepository
 from app.repositories.job_repository import JobRepository
 from app.services.job_service import JobService
 from app.strategies.auth_data_strategy_factory import AuthDataStrategyFactory
+from app.strategies.chunking.base import Chunkifier
 from app.strategies.strategy_factory import EmailProviderStrategyFactory
 from app.tasks.celery.celery import app
 
@@ -487,3 +493,41 @@ async def _fetch_email_content(job_id: str, email_account_id: str) -> None:
     finally:
         if strategy:
             await strategy.close()
+
+
+@app.task(name="prepare_email_chunks")
+def prepare_email_chunks(job_id: str, email_account_id: str):
+    asyncio.run(_prepare_email_chunks(job_id, email_account_id))
+
+
+def _prepare_email_chunks(job_id: str, email_account_id: str):
+    try:
+        with celery_session() as session:
+            job_repository: JobRepository = JobRepository(session)
+            job_service: JobService = JobService(job_repository=job_repository)
+
+            # Mark job as running in CONTENT_FETCH phase
+            job_service.update_job(
+                job_id=job_id,
+                status=JobStatus.RUNNING,
+                phase=JobPhase.PREPARE_EMBEDDABLE_CHUNKS,
+            )
+            email_account_repo: EmailAccountRepository = EmailAccountRepository(session)
+            email_repo: EmailRepository = EmailRepository(session)
+            chunkifier: Chunkifier = get_chunkifier()
+            chunk_preparation_service: ChunkPreparationService = (
+                ChunkPreparationService(
+                    chunkifier=chunkifier,
+                    email_account_repository=email_account_repo,
+                    email_repository=email_repo,
+                )
+            )
+            chunk_preparation_service.prepare_chunks_for_email_account()
+    except Exception as ex:
+        with celery_session() as session:
+            job_repo = JobRepository(session=session)
+            job_service = JobService(job_repo)
+            job_service.update_job(
+                job_id=job_id, status=JobStatus.FAILED, error_message=str(ex)
+            )
+            return {"status": "error", "message": str(ex)}

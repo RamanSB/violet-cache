@@ -97,3 +97,31 @@ class WorkflowJob(BaseModel, table=True):
     progress_total: int = Field(default=0)
     error_message: str = Field(default=None, nullable=True)
     resource_id: uuid.UUID | None = Field(default=None, nullable=True)
+
+
+class EmailChunk(BaseModel, table=True):
+
+    __table_args__ = UniqueConstraint("email_id", "chunk_index", "chunking_version")
+    email_id: uuid.UUID = Field(foreign_key="email.id", index=True)
+    thread_id: str = Field(index=True)
+
+    message_index: int
+    message_count_in_thread: int
+    chunk_index: int
+    chunk_count_for_message: int
+
+    subject: str | None
+    sender: str | None
+    sent_at: datetime
+
+    chunk_text: str
+    embedding_text: str
+
+    char_count: int
+    token_count: int | None = None  # Change this later when chunkifier uses tik token.
+
+    chunking_strategy: str
+    chunking_version: str
+    normalizer_version: str | None = None
+    metadata: dict = Field(default_factory=dict)
+    is_embedded: bool

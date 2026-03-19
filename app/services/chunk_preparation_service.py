@@ -23,7 +23,7 @@ class ChunkPreparationService:
         self._chunkifier = chunkifier
 
     def prepare_chunks_for_email_account(
-        self, email: str, filter_thread_ids: List[str] | None = None
+        self, email_account_id: str, filter_thread_ids: List[str] | None = None
     ) -> Dict[str, List[PreparedEmailChunk]]:
         """
         Prepare chunks for embedding service for a given email account.
@@ -34,8 +34,9 @@ class ChunkPreparationService:
         Returns:
             Dict of List of prepared chunks keyed by thread id.
         """
-        email_account: EmailAccount = self._email_account_repo.find_by_email(
-            email=email
+        # TODO: Move this top level fetching of threads in to the celery task and parallelise with asyncio.
+        email_account: EmailAccount = self._email_account_repo.find_by_email_account_id(
+            email_account_id=uuid.UUID(email_account_id)
         )
         distinct_thread_count: int = self._email_repo.get_distinct_thread_count(
             email_account_id=email_account.id
