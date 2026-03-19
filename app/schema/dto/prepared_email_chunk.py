@@ -28,3 +28,10 @@ class PreparedEmailChunk(BaseModel):
     normalizer_version: str
 
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ChunkPiece(BaseModel):
+    text: str
+    chunk_index: int
+    chunk_count: int
+    char_count: int

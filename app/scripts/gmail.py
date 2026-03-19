@@ -22,6 +22,7 @@ from app.repositories.email_content_repository import EmailContentRepository
 from app.repositories.email_repository import EmailRepository
 from app.repositories.google_auth import GoogleAuthDataRepository
 from app.services import chunk_preparation_service
+from app.strategies.chunking.paragraph import ParagraphChunkifier
 from app.tasks.celery.tasks import expand_emails_per_thread, fetch_email_content
 
 BASE_URL = "https://gmail.googleapis.com/gmail/v1"
@@ -198,6 +199,97 @@ async def test_chunking_preparation_service():
         )
 
 
+def test_chunking_algorithm():
+    text = """
+    Hey Ramandeep,
+
+    Great chatting with you earlier. I appreciate you taking the time.
+
+    Below is a list of companies worth sending your CV to. I've included a bit
+    about them, followed by the headlines of each role including location,
+    salary, hybrid vs on-site etc.
+
+    *Zalos <https://www.zalos.ai/>*: builds Computer Agents that automate
+    repetitive Finance workflows like categorization & reconciliation, without
+    changing Finance systems. Under the hood, they use AI agents that log into
+    existing ERPs and finance tools, interact with real UIs, and execute tasks
+    like a human operator - while maintaining full auditability and control for
+    finance teams.
+
+    - Founding Product Engineer
+    - TypeScript, React, Next.js, Python, FastAPI, Node, AWS/GCP
+    - £90,000-£140,000 + equity
+    - Victoria, London (hybrid)
+    - Pre-seed $3.5M
+
+    *Cosine <https://cosine.sh/>*: builds research-driven AI systems like Genie
+    that can autonomously reason about and modify large codebases, combining
+    in-house model post-training, evaluation frameworks and agent orchestration
+    to create reliable AI engineers for complex enterprise environments.
+
+    - Product Engineer
+    - TypeScript, React, Next.js, Node, Python, Go, AWS
+    - £80,000-£120,000 + equity
+    - Hoxton, London (5 days on-site)
+    - Series A $TBC
+
+    *Heron Data <https://www.herondata.io/>*: builds AI systems that
+    automatically extract, structure and verify data from complex financial
+    documents, enabling lenders and fintechs to automate underwriting and
+    operational workflows with reliable, production-grade LLM pipelines.
+
+    - Full Stack Engineer
+    - Python, FastAPI, TypeScript, React, Vercel, Terraform, GCP/AWS
+    - £90,000-£150,000 + equity
+    - Farringdon, London
+    - Series A $16M
+
+    *Edra <https://edra.ai/>*: builds AI systems that learn how a company
+    actually operates and turn that knowledge into autonomous agents that run
+    and improve those processes over time. Technically, this involves building
+    long-running LLM and agent systems with strong evaluation frameworks,
+    feedback loops, and orchestration layers that allow AI to reliably execute
+    complex operational workflows in production.
+
+    - Product Engineer
+    - Python, TypeScript, FastAPI, Next.js, React
+    - £80,000-£160,000 + equity
+    - Holborn, London (5 days on-site)
+    - Series A $30M
+
+    *Apollo Research <https://www.apolloresearch.ai/>*: runs a hybrid research
+    model: a non-profit arm conducting deep technical investigations into
+    deceptive behaviour and alignment failures in frontier AI systems,
+    alongside a commercial arm building evaluation frameworks and tooling to
+    rigorously test and stress-test advanced models before deployment.
+
+    - Full Stack Engineeer
+    - Python, FastAPI, TypeScript, React
+    - £100,000-£200,000
+    - TBC, London (on-site)
+
+    All specs attached (2 for Apollo) so have a read through and let me know
+    your thoughts on each. As I mentioned, I think all of these are worth an
+    initial chat.
+
+    Looking forward to hearing from you.
+
+    Many Thanks,
+
+    *Will Laing*
+    Co-Founder, Plan:it
+    Co-Founder, London.js <https://www.meetup.com/london-js/>
+    (+44) 07540489568
+
+    *www.weareplanit.com <http://www.weareplanit.com>*
+    Let's connect on LinkedIn! <https://www.linkedin.com/in/willhlaing/>
+    """
+
+    chunkifier = ParagraphChunkifier()
+    chunks = chunkifier.chunk(text)
+    print(len(chunks))
+
+
 if __name__ == "__main__":
     # import pathlib
 
@@ -273,4 +365,5 @@ if __name__ == "__main__":
     # print(parsed_email_content)
 
     # Test email chunk prepare
-    asyncio.run(test_chunking_preparation_service())
+    # asyncio.run(test_chunking_preparation_service())
+    test_chunking_algorithm()

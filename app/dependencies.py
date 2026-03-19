@@ -1,3 +1,4 @@
+import chunk
 from typing import Annotated
 from fastapi import Depends
 from app.db import SessionDep
@@ -13,6 +14,12 @@ from app.services.google_oauth_service import GoogleOAuthService
 from app.services.job_service import JobService
 from app.services.user_service import UserService
 from app.services.email_account_service import EmailAccountService
+from app.strategies.chunking.base import Chunkifier
+from app.strategies.chunking.factory import build_chunkifier
+
+CHUNK_STRATEGY = "paragraph"
+CHUNK_SIZE = 400
+OVERLAP = 50
 
 
 def get_email_repository(session: SessionDep) -> EmailRepository:
@@ -55,6 +62,14 @@ def get_job_service(
     return JobService(job_repo)
 
 
+def get_chunkifier() -> Chunkifier:
+    return build_chunkifier(
+        strategy=CHUNK_STRATEGY,
+        chunk_size=CHUNK_SIZE,
+        overlap=OVERLAP,
+    )
+
+
 def get_chunk_preparation_service(
     email_account_repo: Annotated[
         EmailRepository, Depends(get_email_account_repository)
@@ -63,11 +78,13 @@ def get_chunk_preparation_service(
     email_content_repo: Annotated[
         EmailContentRepository, Depends(get_email_content_repository)
     ],
+    chunkifier: Annotated[Chunkifier, Depends(get_chunkifier)],
 ):
     return ChunkPreparationService(
         email_account_repository=email_account_repo,
         email_repository=email_repo,
         email_content_repository=email_content_repo,
+        chunkifier=chunkifier,
     )
 
 

@@ -5,6 +5,7 @@ from app.repositories.email_account import EmailAccountRepository
 from app.repositories.email_content_repository import EmailContentRepository
 from app.repositories.email_repository import EmailRepository
 from app.schema.dto.prepared_email_chunk import PreparedEmailChunk
+from app.strategies.chunking.base import Chunkifier
 
 
 class ChunkPreparationService:
@@ -14,11 +15,12 @@ class ChunkPreparationService:
         email_account_repository: EmailAccountRepository,
         email_repository: EmailRepository,
         email_content_repository: EmailContentRepository,
-        # chunkifier: TODO: Create Chunkifier ABC and implement a particular ChunkStrategyClass
+        chunkifier: Chunkifier,
     ):
         self._email_account_repo = email_account_repository
         self._email_repo = email_repository
         self._email_content_repo = email_content_repository
+        self._chunkifier = chunkifier
 
     def prepare_chunks_for_email_account(self, email: str):
         """
@@ -82,5 +84,3 @@ class ChunkPreparationService:
         """
         Placeholder method to prepare chunks for a single email.
         """
-        pass
-        # TODO: Create PreparedEmailChunk
