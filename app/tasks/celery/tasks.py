@@ -1,20 +1,28 @@
 import asyncio
 import chunk
+from itertools import chain
 import uuid
 from datetime import datetime, timezone
-from typing import List
+from typing import Dict, List
 
 from app.celery_db import celery_session
-from app.dependencies import get_chunk_preparation_service, get_chunkifier
+
+# from app.dependencies import get_chunkifier
 from app.normalisers.email_normaliser import EmailNormaliser
 from app.parsers.parser_factory import EmailContentParserFactory
 from app.repositories.email_repository import EmailRepository
 from app.repositories.email_content_repository import EmailContentRepository
+
+# from app.schema.dto.prepared_email_chunk import PreparedEmailChunk
+from app.schema.dto.prepared_email_chunk import PreparedEmailChunk
 from app.schema.schemas import ParsedEmailContent
 from app.services import chunk_preparation_service
 from app.services import job_service
 from app.services.chunk_preparation_service import ChunkPreparationService
 from app.services.email_ingestion import email_ingestion
+
+# from app.services.email_ingestion.email_chunk_service import EmailChunkService
+from app.services.email_ingestion.email_chunk_service import EmailChunkService
 from app.services.email_ingestion.email_ingestion import EmailIngestionService
 from app.services.email_ingestion.filters.rules import should_keep_email_metadata
 from app.enums import JobPhase, JobStatus
@@ -24,6 +32,7 @@ from app.repositories.job_repository import JobRepository
 from app.services.job_service import JobService
 from app.strategies.auth_data_strategy_factory import AuthDataStrategyFactory
 from app.strategies.chunking.base import Chunkifier
+from app.strategies.chunking.paragraph import ParagraphChunkifier
 from app.strategies.strategy_factory import EmailProviderStrategyFactory
 from app.tasks.celery.celery import app
 
@@ -496,11 +505,19 @@ async def _fetch_email_content(job_id: str, email_account_id: str) -> None:
 
 
 @app.task(name="prepare_email_chunks")
-def prepare_email_chunks(job_id: str, email_account_id: str):
-    asyncio.run(_prepare_email_chunks(job_id, email_account_id))
+def prepare_email_chunks(
+    job_id: str, email_account_id: str, filter_thread_ids: List[str] | None = None
+):
+    asyncio.run(
+        _prepare_email_chunks(
+            job_id, email_account_id, filter_thread_ids=filter_thread_ids
+        )
+    )
 
 
-def _prepare_email_chunks(job_id: str, email_account_id: str):
+def _prepare_email_chunks(
+    job_id: str, email_account_id: str, filter_thread_ids: List[str] | None = None
+):
     try:
         with celery_session() as session:
             job_repository: JobRepository = JobRepository(session)
@@ -514,7 +531,10 @@ def _prepare_email_chunks(job_id: str, email_account_id: str):
             )
             email_account_repo: EmailAccountRepository = EmailAccountRepository(session)
             email_repo: EmailRepository = EmailRepository(session)
-            chunkifier: Chunkifier = get_chunkifier()
+
+            chunkifier: Chunkifier = (
+                ParagraphChunkifier()
+            )  # TODO: Resolve this if we import from dependencies.py we are fucked because there's a circular import.
             chunk_preparation_service: ChunkPreparationService = (
                 ChunkPreparationService(
                     chunkifier=chunkifier,
@@ -522,7 +542,42 @@ def _prepare_email_chunks(job_id: str, email_account_id: str):
                     email_repository=email_repo,
                 )
             )
-            chunk_preparation_service.prepare_chunks_for_email_account()
+            prepared_email_chunks_by_thread_id: Dict[str, List[PreparedEmailChunk]] = (
+                chunk_preparation_service.prepare_chunks_for_email_account(
+                    email_account_id=email_account_id,
+                    filter_thread_ids=filter_thread_ids,
+                )
+            )
+
+            email_chunk_service: EmailChunkService = EmailChunkService(session)
+            batch_size = 500
+            current_batch = []
+            processed = 0
+            # Batch write chunks to DB.
+            for thread_chunks in prepared_email_chunks_by_thread_id.values():
+                for chunk in thread_chunks:
+                    current_batch.append(chunk)
+
+                    if len(current_batch) >= batch_size:
+                        email_chunk_service.batch_insert_email_chunks(
+                            prepared_email_chunks=current_batch
+                        )
+                        processed += len(current_batch)
+                        current_batch = []
+
+            if current_batch:
+                email_chunk_service.batch_insert_email_chunks(
+                    prepared_email_chunks=current_batch
+                )
+                processed += len(current_batch)
+
+            job_service.update_job(
+                job_id=job_id,
+                status=JobStatus.SUCCEEDED,
+                completed_at=datetime.now(timezone.utc),
+                progress_total=processed,
+            )
+
     except Exception as ex:
         with celery_session() as session:
             job_repo = JobRepository(session=session)

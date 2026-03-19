@@ -7,6 +7,8 @@ from datetime import timezone, datetime
 
 from app.enums import EmailProvider, JobPhase, JobStatus, JobType, ResourceType
 
+from sqlalchemy.dialects.postgresql import JSONB
+
 
 class BaseModel(SQLModel):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -101,7 +103,7 @@ class WorkflowJob(BaseModel, table=True):
 
 class EmailChunk(BaseModel, table=True):
 
-    __table_args__ = UniqueConstraint("email_id", "chunk_index", "chunking_version")
+    __table_args__ = (UniqueConstraint("email_id", "chunk_index", "chunking_version"),)
     email_id: uuid.UUID = Field(foreign_key="email.id", index=True)
     thread_id: str = Field(index=True)
 
@@ -123,5 +125,5 @@ class EmailChunk(BaseModel, table=True):
     chunking_strategy: str
     chunking_version: str
     normalizer_version: str | None = None
-    metadata: dict = Field(default_factory=dict)
+    meta: dict = Field(sa_type=JSONB, nullable=True)
     is_embedded: bool

@@ -34,4 +34,4 @@ class ResourceType(str, Enum):
 
 
 # TODO: Read in from JWT
-HARDCODED_USER_ID = uuid.UUID("542d0824-a066-4670-8a81-811f848b4554")
+HARDCODED_USER_ID = uuid.UUID("baa55893-0d5b-426e-ab3e-4419e7d4da6a")

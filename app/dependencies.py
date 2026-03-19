@@ -2,6 +2,7 @@ import chunk
 from typing import Annotated
 from fastapi import Depends
 from app.db import SessionDep
+from app.repositories.email_chunk import EmailChunkRepository
 from app.repositories.email_content_repository import EmailContentRepository
 from app.repositories.email_repository import EmailRepository
 from app.repositories.job_repository import JobRepository
@@ -9,6 +10,7 @@ from app.repositories.user import UserRepository
 from app.repositories.google_auth import GoogleAuthDataRepository
 from app.repositories.email_account import EmailAccountRepository
 from app.services.chunk_preparation_service import ChunkPreparationService
+from app.services.email_ingestion.email_chunk_service import EmailChunkService
 from app.services.email_ingestion.email_ingestion import EmailIngestionService
 from app.services.google_oauth_service import GoogleOAuthService
 from app.services.job_service import JobService
@@ -47,6 +49,18 @@ def get_email_account_repository(session: SessionDep) -> EmailAccountRepository:
 
 def get_email_content_repository(session: SessionDep) -> EmailContentRepository:
     return EmailContentRepository(session)
+
+
+def get_email_chunk_repository(session: SessionDep) -> EmailChunkRepository:
+    return EmailChunkRepository(session)
+
+
+def get_email_chunk_service(
+    email_chunk_repo: Annotated[
+        EmailChunkRepository, Depends(get_email_chunk_repository)
+    ],
+):
+    return EmailChunkService(email_chunk_repo=email_chunk_repo)
 
 
 def get_user_service(
