@@ -20,18 +20,11 @@ class PreparedEmailChunk(BaseModel):
     sent_at: datetime | None = None
 
     chunk_text: str
-    embedding_text: str
+    embedding_text: str | None = None
     char_count: int
 
     chunking_strategy: str
     chunking_version: str
-    normalizer_version: str
+    normalizer_version: str | None
 
     metadata: dict[str, Any] = Field(default_factory=dict)
-
-
-class ChunkPiece(BaseModel):
-    text: str
-    chunk_index: int
-    chunk_count: int
-    char_count: int

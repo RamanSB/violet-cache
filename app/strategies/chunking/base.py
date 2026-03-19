@@ -4,7 +4,14 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import List
 
-from app.schema.dto.prepared_email_chunk import ChunkPiece
+from pydantic import BaseModel
+
+
+class ChunkPiece(BaseModel):
+    text: str
+    chunk_index: int
+    chunk_count: int
+    char_count: int
 
 
 class Chunkifier(ABC):

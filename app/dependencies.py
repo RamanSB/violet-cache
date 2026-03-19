@@ -75,15 +75,11 @@ def get_chunk_preparation_service(
         EmailRepository, Depends(get_email_account_repository)
     ],
     email_repo: Annotated[EmailRepository, Depends(get_email_repository)],
-    email_content_repo: Annotated[
-        EmailContentRepository, Depends(get_email_content_repository)
-    ],
     chunkifier: Annotated[Chunkifier, Depends(get_chunkifier)],
 ):
     return ChunkPreparationService(
         email_account_repository=email_account_repo,
         email_repository=email_repo,
-        email_content_repository=email_content_repo,
         chunkifier=chunkifier,
     )
 
