@@ -24,6 +24,12 @@ class EmailAccountRepository:
             ).all()
         )
 
+    def find_by_email_account_id(
+        self, email_account_id: uuid.UUID
+    ) -> EmailAccount | None:
+        stmt = select(EmailAccount).where(EmailAccount.id == email_account_id)
+        return self.session.exec(stmt).first()
+
     def find_by_user_and_email(
         self, user_id: uuid.UUID, email: str
     ) -> EmailAccount | None:

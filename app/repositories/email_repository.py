@@ -1,10 +1,10 @@
-from typing import Iterable, List
+from typing import Iterable, List, Tuple
 from sqlmodel import Session, select, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Result
 import uuid
 
-from app.models.models import Email
+from app.models.models import Email, EmailContent
 
 
 class EmailRepository:
@@ -93,4 +93,18 @@ class EmailRepository:
 
         results = self.session.exec(stmt).all()
         # results is a list of scalar thread_id values
+        return list(results)
+
+    def get_emails_by_thread_id(
+        self, *, thread_id: str, user_id: uuid.UUID, sort_asc=True
+    ) -> List[Tuple[Email, EmailContent]]:
+        stmt = (
+            # Later decide what fields are relevant to select.
+            select(Email, EmailContent)
+            .join(EmailContent, Email.id == EmailContent.email_id)
+            .where(Email.thread_id == thread_id, Email.user_id == user_id)
+        )
+        if sort_asc:
+            stmt = stmt.order_by(Email.date_received)
+        results = self.session.exec(stmt).all()
         return list(results)

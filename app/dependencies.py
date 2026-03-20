@@ -1,17 +1,27 @@
+import chunk
 from typing import Annotated
 from fastapi import Depends
 from app.db import SessionDep
+from app.repositories.email_chunk import EmailChunkRepository
 from app.repositories.email_content_repository import EmailContentRepository
 from app.repositories.email_repository import EmailRepository
 from app.repositories.job_repository import JobRepository
 from app.repositories.user import UserRepository
 from app.repositories.google_auth import GoogleAuthDataRepository
 from app.repositories.email_account import EmailAccountRepository
+from app.services.chunk_preparation_service import ChunkPreparationService
+from app.services.email_ingestion.email_chunk_service import EmailChunkService
 from app.services.email_ingestion.email_ingestion import EmailIngestionService
 from app.services.google_oauth_service import GoogleOAuthService
 from app.services.job_service import JobService
 from app.services.user_service import UserService
 from app.services.email_account_service import EmailAccountService
+from app.strategies.chunking.base import Chunkifier
+from app.strategies.chunking.factory import build_chunkifier
+
+CHUNK_STRATEGY = "paragraph"
+CHUNK_SIZE = 400
+OVERLAP = 50
 
 
 def get_email_repository(session: SessionDep) -> EmailRepository:
@@ -41,6 +51,18 @@ def get_email_content_repository(session: SessionDep) -> EmailContentRepository:
     return EmailContentRepository(session)
 
 
+def get_email_chunk_repository(session: SessionDep) -> EmailChunkRepository:
+    return EmailChunkRepository(session)
+
+
+def get_email_chunk_service(
+    email_chunk_repo: Annotated[
+        EmailChunkRepository, Depends(get_email_chunk_repository)
+    ],
+):
+    return EmailChunkService(email_chunk_repo=email_chunk_repo)
+
+
 def get_user_service(
     user_repo: Annotated[UserRepository, Depends(get_user_repository)],
 ) -> UserService:
@@ -52,6 +74,28 @@ def get_job_service(
     job_repo: Annotated[JobRepository, Depends(get_job_repository)],
 ) -> JobService:
     return JobService(job_repo)
+
+
+def get_chunkifier() -> Chunkifier:
+    return build_chunkifier(
+        strategy=CHUNK_STRATEGY,
+        chunk_size=CHUNK_SIZE,
+        overlap=OVERLAP,
+    )
+
+
+def get_chunk_preparation_service(
+    email_account_repo: Annotated[
+        EmailRepository, Depends(get_email_account_repository)
+    ],
+    email_repo: Annotated[EmailRepository, Depends(get_email_repository)],
+    chunkifier: Annotated[Chunkifier, Depends(get_chunkifier)],
+):
+    return ChunkPreparationService(
+        email_account_repository=email_account_repo,
+        email_repository=email_repo,
+        chunkifier=chunkifier,
+    )
 
 
 def get_email_ingestion_service(

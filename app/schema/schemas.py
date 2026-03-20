@@ -2,6 +2,7 @@ import uuid
 from pydantic import BaseModel
 
 
+# Use EmailContent in models instead of this, turn this in to a DTO.
 class ParsedEmailContent(BaseModel):
     email_id: uuid.UUID | None = None
     container_mime_type: str | None = None

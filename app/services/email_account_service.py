@@ -8,11 +8,12 @@ from celery.result import AsyncResult
 from app.repositories.email_account import EmailAccountRepository
 from app.repositories.user import UserRepository
 from app.repositories.google_auth import GoogleAuthDataRepository
-from app.models.models import EmailAccount, GoogleAuthData
+from app.models.models import EmailAccount
 from app.enums import EmailProvider
 from app.tasks.celery.tasks import (
     expand_emails_per_thread,
     fetch_email_content,
+    prepare_email_chunks,
     sync_email_metadata_orchestrator,
 )
 
@@ -175,6 +176,7 @@ class EmailAccountService:
             )
             | expand_emails_per_thread.si(job_id, email_account_id)
             | fetch_email_content.si(job_id, email_account_id)
+            | prepare_email_chunks.si(job_id, email_account_id)
         )
         res = task_chain()
         print(res)

@@ -112,3 +112,4 @@ When a user asks a query we embed the query and perform a dot product on the chu
 # 6. Architecture
 
 ![Casefile Architecture](docs/architecture.png)
+
