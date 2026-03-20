@@ -155,9 +155,59 @@ class PreparedEmailChunk:
     metadata: dict
 
 ```
-EmailChunkPrepService creates the above PreparedEmailChunks by doing the following:
-- For a given email_account_id, we load all distinct thread_ids. 
-- Then fetch the individual messages per thread and sort in chronological order and attach metadata.
-- We then go through the message (normalized_text) content and chunkify using a chunker to create chunks and include the metadata.
 
-EmailChunkPrepService should leverage a Chunkifier that has a strategy and we implement ~chunk_size in tokens and uses a tokenizer and also another class for structuring emails
+## Optimization Checklist
+
+### Preprocessing / Normalization
+
+- Improve footer/compliance/disclaimer stripping
+- Handle forwarded emails more deliberately
+- Preserve useful contact/business info while removing legal noise
+- Review cases where normalization strips too much
+- Review cases where normalization leaves too much junk
+
+### Chunking
+
+- Revisit chunking strategy after retrieval testing
+- Add proper tokenizer-based counts (`tiktoken`) instead of word-based approximation
+- Re-evaluate overlap behavior
+- Review very long threads/messages that explode into many chunks
+- Decide whether single-message vs multi-message threads should be chunked differently
+
+### Missing-Content Handling
+
+- Review emails within threads that have no `normalized_text`
+- Decide whether message numbering should reflect:
+  - original thread positions, or
+  - only embeddable messages
+- Consider whether embedding text should omit “Message X of Y” if skipped messages make numbering awkward
+
+### Metadata / Embedding Text
+
+- Reassess what metadata should be embedded vs stored only for filtering
+- Consider normalized subject in embedding text
+- Consider storing token count once tokenizer is correct
+- Review whether sender/subject/date formatting is helping retrieval
+
+### Pipeline / Scalability
+
+- Parallelize thread chunk preparation (e.g., with Celery)
+- Batch embedding requests efficiently
+- Add idempotent chunk/vector upserts
+- Add better observability around skipped emails/chunks
+
+### Retrieval / RAG Quality
+
+- Test real queries before changing preprocessing
+- Inspect bad retrievals and trace whether the issue arose from:
+  - normalization
+  - chunking
+  - metadata
+  - embedding text
+  - retrieval logic itself
+
+---
+
+### Cases Identified
+
+- **16adbdec8aa7c2c8** (threadId): Forwarded Messages
