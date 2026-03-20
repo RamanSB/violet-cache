@@ -57,7 +57,7 @@ class ChunkPreparationService:
                 user_id=email_account.user_id,
                 offset=offset,
                 limit=limit,
-                only_multi_message_threads=True,
+                only_multi_message_threads=False,
             )
             if not distinct_thread_ids:
                 break
