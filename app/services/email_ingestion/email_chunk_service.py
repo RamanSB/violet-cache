@@ -9,13 +9,24 @@ class EmailChunkService:
     def __init__(self, email_chunk_repo: EmailChunkRepository):
         self.email_chunk_repo = email_chunk_repo
 
-    def batch_insert_email_chunks(
+    def batch_upsert_email_chunks(
         self, prepared_email_chunks: List[PreparedEmailChunk]
     ):
-        email_chunks: List[EmailChunk] = self._convert_prepared_email_chunks(
-            prepared_email_chunks
-        )
-        self.email_chunk_repo.batch_insert_email_chunk(rows=email_chunks)
+        try:
+            email_chunks: List[EmailChunk] = self._convert_prepared_email_chunks(
+                prepared_email_chunks
+            )
+            rows = [
+                email_chunk.model_dump(
+                    exclude={"id", "created_at", "updated_at"},
+                    exclude_none=False,
+                )
+                for email_chunk in email_chunks
+            ]
+            self.email_chunk_repo.batch_upsert_email_chunks(rows=rows)
+        except Exception as ex:
+            print(f"Exception in batch_insert_email_chunks: {ex}")
+            raise ex
 
     def _convert_prepared_email_chunks(
         self, prepared_email_chunks: List[PreparedEmailChunk]
@@ -37,7 +48,7 @@ class EmailChunkService:
                 chunking_strategy=chunk.chunking_strategy,
                 chunking_version=chunk.chunking_version,
                 normalizer_version=chunk.normalizer_version,
-                metadata=chunk.metadata,
+                meta=chunk.metadata,
                 is_embedded=False,
             )
             for chunk in prepared_email_chunks

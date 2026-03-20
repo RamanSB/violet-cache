@@ -102,7 +102,7 @@ class WorkflowJob(BaseModel, table=True):
 
 
 class EmailChunk(BaseModel, table=True):
-
+    __tablename__ = "email_chunk"
     __table_args__ = (UniqueConstraint("email_id", "chunk_index", "chunking_version"),)
     email_id: uuid.UUID = Field(foreign_key="email.id", index=True)
     thread_id: str = Field(index=True)
@@ -125,5 +125,5 @@ class EmailChunk(BaseModel, table=True):
     chunking_strategy: str
     chunking_version: str
     normalizer_version: str | None = None
-    meta: dict = Field(sa_type=JSONB, nullable=True)
+    meta: dict | None = Field(sa_type=JSONB, nullable=True)
     is_embedded: bool

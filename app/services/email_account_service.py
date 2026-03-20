@@ -176,7 +176,7 @@ class EmailAccountService:
             )
             | expand_emails_per_thread.si(job_id, email_account_id)
             | fetch_email_content.si(job_id, email_account_id)
-            # | prepare_email_chunks.si(job_id, email_account_id)
+            | prepare_email_chunks.si(job_id, email_account_id)
         )
         res = task_chain()
         print(res)

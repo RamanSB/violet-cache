@@ -23,7 +23,11 @@ from app.repositories.email_repository import EmailRepository
 from app.repositories.google_auth import GoogleAuthDataRepository
 from app.services import chunk_preparation_service
 from app.strategies.chunking.paragraph import ParagraphChunkifier
-from app.tasks.celery.tasks import expand_emails_per_thread, fetch_email_content
+from app.tasks.celery.tasks import (
+    expand_emails_per_thread,
+    fetch_email_content,
+    _prepare_email_chunks,
+)
 
 BASE_URL = "https://gmail.googleapis.com/gmail/v1"
 OAUTH_ACCESS_TOKEN = ""
@@ -290,6 +294,15 @@ def test_chunking_algorithm():
     print(len(chunks))
 
 
+async def test_chunk_task():
+    _prepare_email_chunks(
+        email_account_id="0fabaceb-af22-4392-8e98-a843234982de",
+        job_id="f6c82334-e888-4a05-8c6b-fee952dd0e71",
+        filter_thread_ids=["16adbdec8aa7c2c8"],
+    )
+    pass
+
+
 if __name__ == "__main__":
     # import pathlib
 
@@ -366,4 +379,5 @@ if __name__ == "__main__":
 
     # Test email chunk prepare
     # asyncio.run(test_chunking_preparation_service())
-    test_chunking_algorithm()
+    # test_chunking_algorithm()
+    asyncio.run(test_chunk_task())

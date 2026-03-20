@@ -10,6 +10,8 @@ from app.celery_db import celery_session
 # from app.dependencies import get_chunkifier
 from app.normalisers.email_normaliser import EmailNormaliser
 from app.parsers.parser_factory import EmailContentParserFactory
+from app.repositories import email_chunk
+from app.repositories.email_chunk import EmailChunkRepository
 from app.repositories.email_repository import EmailRepository
 from app.repositories.email_content_repository import EmailContentRepository
 
@@ -515,7 +517,7 @@ def prepare_email_chunks(
     )
 
 
-def _prepare_email_chunks(
+async def _prepare_email_chunks(
     job_id: str, email_account_id: str, filter_thread_ids: List[str] | None = None
 ):
     try:
@@ -548,8 +550,12 @@ def _prepare_email_chunks(
                     filter_thread_ids=filter_thread_ids,
                 )
             )
-
-            email_chunk_service: EmailChunkService = EmailChunkService(session)
+            email_chunk_repo: EmailChunkRepository = EmailChunkRepository(
+                session=session
+            )
+            email_chunk_service: EmailChunkService = EmailChunkService(
+                email_chunk_repo=email_chunk_repo
+            )
             batch_size = 500
             current_batch = []
             processed = 0
@@ -559,14 +565,14 @@ def _prepare_email_chunks(
                     current_batch.append(chunk)
 
                     if len(current_batch) >= batch_size:
-                        email_chunk_service.batch_insert_email_chunks(
+                        email_chunk_service.batch_upsert_email_chunks(
                             prepared_email_chunks=current_batch
                         )
                         processed += len(current_batch)
                         current_batch = []
 
             if current_batch:
-                email_chunk_service.batch_insert_email_chunks(
+                email_chunk_service.batch_upsert_email_chunks(
                     prepared_email_chunks=current_batch
                 )
                 processed += len(current_batch)

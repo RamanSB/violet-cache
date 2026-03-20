@@ -7,6 +7,9 @@ from app.repositories.email_content_repository import EmailContentRepository
 from app.repositories.email_repository import EmailRepository
 from app.schema.dto.prepared_email_chunk import PreparedEmailChunk
 from app.strategies.chunking.base import Chunkifier, ChunkPiece
+from app.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class ChunkPreparationService:
@@ -65,6 +68,9 @@ class ChunkPreparationService:
                 thread_chunks = self.prepare_chunks_for_thread(
                     thread_id=thread_id, user_id=email_account.user_id
                 )
+                logger.info(
+                    f"Generated {len(thread_chunks)} chunks for thread_id: {thread_id}"
+                )
                 chunks_by_thread_id[thread_id] = thread_chunks
 
             processed_count = len(distinct_thread_ids)
@@ -86,16 +92,23 @@ class ChunkPreparationService:
         all_chunks = []
         for idx, (email, content) in enumerate(email_with_content):
             if not content.normalized_text:
-                print(
+                logger.info(
                     f"skip {email.id} for thread {email.thread_id} - no content from {email.sender} | subject: {email.subject} "
                 )
+                continue
             email_chunks = self.prepare_chunks_for_email(
                 email=email,
                 content=content.normalized_text,
                 message_idx=idx,
                 message_count=msg_count,
             )
+            logger.info(
+                f"Thread {thread_id} | Message ({email.id}) generated {len(email_chunks)} chunks"
+            )
             all_chunks.extend(email_chunks)
+        logger.info(
+            f"Thread {thread_id} [msg_count={msg_count} | chunk_count={len(all_chunks)}]"
+        )
         return all_chunks
 
     def prepare_chunks_for_email(
