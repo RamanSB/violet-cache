@@ -92,7 +92,7 @@ def sync_email_account(
 
         active_job, created = job_service.get_or_create_active_job(
             resource_type=ResourceType.EMAIL_ACCOUNT,
-            resource_id=email_account_id,
+            resource_id=email_account_uuid,
             job_type=JobType.MAILBOX_SYNC,
         )
         # Start sync job (this will check credentials internally) if job not already created.

@@ -53,3 +53,23 @@ class EmailChunkService:
             )
             for chunk in prepared_email_chunks
         ]
+
+    def get_email_chunk_by_ids(self, chunk_ids: List[str]) -> List[EmailChunk]:
+        try:
+            email_chunks: List[EmailChunk] = self.email_chunk_repo.get_chunk_by_ids(
+                chunk_ids=chunk_ids
+            )
+            return email_chunks
+        except Exception as ex:
+            print(f"")
+
+    def get_email_chunks_by_thread_id(self, thread_id: str) -> List[EmailChunk]:
+        try:
+            email_chunks: List[EmailChunk] = (
+                self.email_chunk_repo.get_chunks_by_thread_id(thread_id=thread_id)
+            )
+            print(f"Retrieved {len(email_chunks)} chunks for thread_id={thread_id}")
+            return email_chunks
+
+        except Exception as ex:
+            print(f"")

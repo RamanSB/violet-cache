@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     # Celery
     celery_broker_url: str
     celery_result_backend: str
+    # Openai
+    openai_api_key: str
     model_config = SettingsConfigDict(
         env_file="/Users/raman/Documents/Development/Projects/notes-lab/.env"
     )

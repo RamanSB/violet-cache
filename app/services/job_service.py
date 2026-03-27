@@ -1,5 +1,6 @@
 from datetime import datetime
 from time import timezone
+from typing import Tuple
 from sqlmodel import select
 from app.models.models import WorkflowJob
 from app.repositories.job_repository import JobRepository
@@ -32,7 +33,7 @@ class JobService:
 
     def get_or_create_active_job(
         self, resource_type: ResourceType, resource_id: uuid.UUID, job_type: JobType
-    ) -> (WorkflowJob, bool):
+    ) -> Tuple[WorkflowJob, bool]:
         workflow_job = self.job_repo.find_job_by_resource(
             resource_id=resource_id,
             resource_type=resource_type,

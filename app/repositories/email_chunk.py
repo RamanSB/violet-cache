@@ -1,6 +1,7 @@
 from typing import List
+import uuid
 from sqlalchemy.dialects.postgresql import insert
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app.models.models import EmailChunk
 
@@ -36,3 +37,19 @@ class EmailChunkRepository:
         )
         self.session.exec(stmt)
         self.session.commit()
+
+    def get_chunk_by_ids(self, chunk_ids: List[str]) -> List[EmailChunk]:
+        if not chunk_ids:
+            return []
+
+        stmt = select(EmailChunk).where(EmailChunk.id.in_(chunk_ids))
+        result = self.session.exec(stmt).all()
+        return result
+
+    def get_chunks_by_thread_id(self, thread_id: str) -> List[EmailChunk]:
+        if not thread_id:
+            return []
+
+        stmt = select(EmailChunk).where(EmailChunk.thread_id == thread_id)
+        result = self.session.exec(stmt).all()
+        return result

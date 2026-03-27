@@ -11,17 +11,21 @@ from sqlalchemy import Result
 from sqlmodel import Session, col, func, select
 
 from app.client.gmail import GmailClient
+from app.client.openai import OpenAIClient
 from app.db import engine
-from app.dependencies import get_chunk_preparation_service
+from app.dependencies import get_chunk_preparation_service, get_open_ai_client
 from app.enums import HARDCODED_USER_ID
 from app.models.models import Email, EmailContent
 from app.normalisers.email_normaliser import EmailNormaliser
 from app.parsers.gmail_content_parser import GmailContentParser
 from app.repositories.email_account import EmailAccountRepository
+from app.repositories.email_chunk import EmailChunkRepository
 from app.repositories.email_content_repository import EmailContentRepository
 from app.repositories.email_repository import EmailRepository
 from app.repositories.google_auth import GoogleAuthDataRepository
 from app.services import chunk_preparation_service
+from app.services.email_ingestion.email_chunk_service import EmailChunkService
+from app.services.embedding.embedding import EmbeddingService
 from app.strategies.chunking.paragraph import ParagraphChunkifier
 from app.tasks.celery.tasks import (
     expand_emails_per_thread,
@@ -300,7 +304,6 @@ async def test_chunk_task():
         job_id="f6c82334-e888-4a05-8c6b-fee952dd0e71",
         filter_thread_ids=["16adbdec8aa7c2c8"],
     )
-    pass
 
 
 if __name__ == "__main__":
@@ -380,4 +383,17 @@ if __name__ == "__main__":
     # Test email chunk prepare
     # asyncio.run(test_chunking_preparation_service())
     # test_chunking_algorithm()
-    asyncio.run(test_chunk_task())
+    # asyncio.run(test_chunk_task())
+    with Session(engine) as session:
+        email_chunk_repo = EmailChunkRepository(session)
+        email_chunks = email_chunk_repo.get_chunk_by_ids(
+            ["001bbf9e-5981-47ed-8527-a2bad891f342"]
+        )
+        emb_svc = EmbeddingService(
+            get_open_ai_client(),
+            email_chunk_service=EmailChunkService(email_chunk_repo=email_chunk_repo),
+        )
+        embeddings = emb_svc.create_embedding_vectors_by_thread_id(
+            thread_id="17ba640f6d1a8446"
+        )
+        pass

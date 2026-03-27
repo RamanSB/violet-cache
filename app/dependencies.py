@@ -1,6 +1,7 @@
 import chunk
 from typing import Annotated
 from fastapi import Depends
+from app.client.openai import OpenAIClient
 from app.db import SessionDep
 from app.repositories.email_chunk import EmailChunkRepository
 from app.repositories.email_content_repository import EmailContentRepository
@@ -12,6 +13,7 @@ from app.repositories.email_account import EmailAccountRepository
 from app.services.chunk_preparation_service import ChunkPreparationService
 from app.services.email_ingestion.email_chunk_service import EmailChunkService
 from app.services.email_ingestion.email_ingestion import EmailIngestionService
+from app.services.embedding.embedding import EmbeddingService
 from app.services.google_oauth_service import GoogleOAuthService
 from app.services.job_service import JobService
 from app.services.user_service import UserService
@@ -22,6 +24,10 @@ from app.strategies.chunking.factory import build_chunkifier
 CHUNK_STRATEGY = "paragraph"
 CHUNK_SIZE = 400
 OVERLAP = 50
+
+
+def get_open_ai_client() -> OpenAIClient:
+    return OpenAIClient()
 
 
 def get_email_repository(session: SessionDep) -> EmailRepository:
@@ -133,6 +139,12 @@ def get_google_oauth_service(
 ) -> GoogleOAuthService:
     """Dependency to get GoogleOAuthService instance."""
     return GoogleOAuthService(user_repo, google_auth_repo, email_account_service)
+
+
+def get_embedding_service(
+    openai: Annotated[OpenAIClient, Depends(get_open_ai_client)],
+) -> EmbeddingService:
+    return EmbeddingService(openai=openai)
 
 
 # Type aliases for cleaner route signatures

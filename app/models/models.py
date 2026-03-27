@@ -1,10 +1,10 @@
-from typing import List
+from typing import Any, List
 import uuid
 from fastapi import status
 from sqlmodel import Boolean, Field, SQLModel, TIMESTAMP, UniqueConstraint
 from sqlmodel.main import EmailStr
 from datetime import timezone, datetime
-
+from pgvector.sqlalchemy import VECTOR
 from app.enums import EmailProvider, JobPhase, JobStatus, JobType, ResourceType
 
 from sqlalchemy.dialects.postgresql import JSONB
@@ -116,7 +116,8 @@ class EmailChunk(BaseModel, table=True):
     sender: str | None
     sent_at: datetime
 
-    chunk_text: str
+    chunk_text: str  # rename to embedding_text
+    chunk_text_hash: str  # rename to embedding_text
     embedding_text: str
 
     char_count: int
@@ -127,3 +128,4 @@ class EmailChunk(BaseModel, table=True):
     normalizer_version: str | None = None
     meta: dict | None = Field(sa_type=JSONB, nullable=True)
     is_embedded: bool
+    embedding: Any = Field(sa_type=VECTOR(1536))

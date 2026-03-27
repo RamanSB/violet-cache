@@ -8,6 +8,7 @@ from typing import Dict, List
 from app.celery_db import celery_session
 
 # from app.dependencies import get_chunkifier
+from app.dependencies import get_job_repository, get_job_service
 from app.normalisers.email_normaliser import EmailNormaliser
 from app.parsers.parser_factory import EmailContentParserFactory
 from app.repositories import email_chunk
@@ -592,3 +593,30 @@ async def _prepare_email_chunks(
                 job_id=job_id, status=JobStatus.FAILED, error_message=str(ex)
             )
             return {"status": "error", "message": str(ex)}
+
+
+@app.task(name="embed_email_chunks")
+def embed_email_chunks():
+    asyncio.run(_embed_email_chunks(""))
+
+
+async def _embed_email_chunks(job_id):
+    with celery_session() as session:
+        job_service = get_job_service(job_repo=get_job_repository(session))
+        job_service.update_job(
+            job_id=job_id,
+            status=JobStatus.SUCCEEDED,
+            completed_at=datetime.now(timezone.utc),
+        )
+
+    # EmailChunkService()
+    # Initiate a celery session using context manager (update job to be embedding)
+    # Load up all the Email Chunk associated with the reosurece_id associated with the job
+
+    # Get all EmailChunks for a particular user grouped by thread
+    # Apply a threshold filter to refine what to embed.
+    # Batch them / group them by threadId and send them to EmbeddingService.#bythread_id(thread_id)
+
+    # Set tge embedding vector on the email chunk model and persist.
+    # Update status of job to COMPLETED.
+    return
