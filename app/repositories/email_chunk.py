@@ -53,3 +53,56 @@ class EmailChunkRepository:
         stmt = select(EmailChunk).where(EmailChunk.thread_id == thread_id)
         result = self.session.exec(stmt).all()
         return result
+
+    # NOTE: Change `email_id` param to `email_account_id` once email_account-level filtering is supported.
+
+    def get_unembedded_chunks(
+        self, email_id: str, offset: int = 0, limit: int = 100
+    ) -> List[EmailChunk]:
+        """
+        Retrieve unembedded chunks for a given email.
+        TODO: Change `email_id` to `email_account_id` when refactoring.
+        """
+        stmt = (
+            select(EmailChunk)
+            .where(
+                EmailChunk.email_id == email_id,
+                EmailChunk.is_embedded == False,
+            )
+            .offset(offset)
+            .limit(limit)
+        )
+        return self.session.exec(stmt).all()
+
+    def get_embedded_chunks(
+        self, email_id: str, offset: int = 0, limit: int = 100
+    ) -> List[EmailChunk]:
+        """
+        Retrieve embedded chunks for a given email.
+        TODO: Change `email_id` to `email_account_id` when refactoring.
+        """
+        stmt = (
+            select(EmailChunk)
+            .where(
+                EmailChunk.email_id == email_id,
+                EmailChunk.is_embedded == True,
+            )
+            .offset(offset)
+            .limit(limit)
+        )
+        return self.session.exec(stmt).all()
+
+    def get_all_chunks(
+        self, email_id: str, offset: int = 0, limit: int = 100
+    ) -> List[EmailChunk]:
+        """
+        Retrieve all chunks for a given email.
+        TODO: Change `email_id` to `email_account_id` when refactoring.
+        """
+        stmt = (
+            select(EmailChunk)
+            .where(EmailChunk.email_id == email_id)
+            .offset(offset)
+            .limit(limit)
+        )
+        return self.session.exec(stmt).all()
